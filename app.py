@@ -9,7 +9,7 @@ YEMOT_API_URL = "https://call2all.co.il"
 def write_ext_module():
     extracted = {}
     
-    # סריקה חכמה לקריאת הגדרות קבועות מה-ext.ini (תואם פורמט PHP שעבד לך!)
+    # סריקה חכמה לקריאת הגדרות קבועות מה-ext.ini של החיוג
     for key, value in request.values.items():
         key_str = str(key).strip()
         val_str = str(value).strip()
@@ -36,23 +36,30 @@ def write_ext_module():
 
     try:
         token_dst = f"{system_dst.strip()}:{pass_dst.strip()}"
+        
+        # ניקוי והתאמת פורמט הנתיב (כוכביות הופכות ללוכסנים)
         clean_dst = ext_dst.strip().replace('*', '/').replace('-', '/').strip('/')
+        
+        # 1. יצירת השלוחה/תיקייה פיזית בשרת של ימות המשיח לפני העלאת הקובץ!
+        # הפקודה הזו יוצרת את התיקייה הנדרשת ומאפשרת ל-UploadTextFile לעבוד
+        create_folder_url = f"{YEMOT_API_URL}UploadTextFile?token={token_dst}&what=ivr2:/{clean_dst}/&contents="
+        requests.post(create_folder_url)
+
+        # 2. העלאת קובץ ה-ext.ini עצמו אל התיקייה שפתחנו ברגע זה
         path_dst = f"ivr2:/{clean_dst}/ext.ini"
+        ini_content = "title=Phone-Kol"
 
-        # בניית תוכן הקובץ החדש מאפס
-        ini_content = "title=שלוחה זאת הוגדרה על ידי פון קול"
-
-        # העלאה ישירה באמצעות הפונקציה המנצחת שלך!
         upload_url = f"{YEMOT_API_URL}UploadTextFile?token={token_dst}&what={path_dst}&contents={requests.utils.quote(ini_content)}"
         dst_response = requests.post(upload_url)
 
+        # בדיקה שהקובץ נשתל בהצלחה
         if dst_response.status_code == 200 and '"responseStatus":"OK"' in dst_response.text:
             return ym_say_and_hangup("t-ההגדרות נכתבו בשלוחה בהצלחה")
-        return ym_say_and_hangup("t-שגיאה בהעלאת הנתונים למערכת.")
+        return ym_say_and_hangup("t-שגיאה בהעלאת הנתונים למערכת")
 
     except Exception as e:
         print(f"API Error: {str(e)}")
-        return ym_say_and_hangup("t-התרחשה שגיאה בתקשורת עם השרתים.")
+        return ym_say_and_hangup("t-התרחשה שגיאה בתקשורת עם השרתים")
 
 def ym_read(var_name, text):
     res = make_response(f"read={text}={var_name},4,12,1,Digits")
