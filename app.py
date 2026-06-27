@@ -7,12 +7,10 @@ YEMOT_API_URL = "https://call2all.co.il"
 
 @app.route('/write-ext', methods=['GET', 'POST'])
 def write_ext_module():
-    # בקשת 3 הפרמטרים הבסיסיים מהמאזין בטלפון
     system_dst = request.values.get('system_dst')
     pass_dst = request.values.get('pass_dst')
     ext_dst = request.values.get('ext_dst')
 
-    # שלבי השאלות הברורים בטלפון
     if not system_dst: 
         return ym_read("system_dst", "t-אנא הקישו את מספר המערכת ובסיומה סולמית")
     if not pass_dst:   
@@ -25,23 +23,25 @@ def write_ext_module():
         clean_dst = ext_dst.strip().replace('*', '/').replace('-', '/').strip('/')
         path_dst = f"ivr2:/{clean_dst}/ext.ini"
 
-        # 🎯 שתי השורות המדויקות שביקשת להדפיס בקובץ (ללא תווים משבשים!)
+        # שתי השורות המדויקות שביקשת להדפיס בקובץ
         ini_content = "type=menu\ntitle=נבנה באמצעות פון קול"
 
-        # העלאה הישירה והמקורית שעובדת לך פיקס תמיד!
+        # העלאה הישירה והמקורית שלך
         upload_url = f"{YEMOT_API_URL}UploadTextFile?token={token_dst}&what={path_dst}&contents={requests.utils.quote(ini_content)}"
         dst_response = requests.post(upload_url)
 
+        # בדיקה חכמה: אם ימות המשיח החזירה תשובה והיא מכילה OK - זה הצליח בוודאות
         if dst_response.status_code == 200 and '"responseStatus":"OK"' in dst_response.text:
             return ym_say_and_hangup("t-השלוחה הוגדרה בהצלחה כתפריט")
-        return ym_say_and_hangup("t-שגיאה בהעלאת הנתונים למערכת")
+        
+        # אם חזרה תשובה אבל היא לא OK (למשל סיסמה שגויה או בעיית הרשאה) - נשמיע שגיאה מפורשת!
+        return ym_say_and_hangup("t-שגיאה בהעלאת הנתונים למערכת. אנא בדוק את הפרטים.")
 
     except Exception as e:
         print(f"API Error: {str(e)}")
-        return ym_say_and_hangup("t-התרחשה שגיאה בתקשורת עם השרתים")
+        return ym_say_and_hangup("t-התרחשה שגיאה בתקשורת עם השרתים.")
 
 def ym_read(var_name, text):
-    # פורמט ההקשות המנצח והיציב שאתה פיצחת בעצמך!
     res = make_response(f"read={text}={var_name},4,12,1,Digits")
     res.headers['Content-Type'] = 'text/plain; charset=utf-8'
     return res
