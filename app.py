@@ -80,10 +80,11 @@ menu_voice={selected_voice}
         response = requests.post(f"{YEMOT_API_URL}UploadTextFile", params=params, timeout=15)
 
         if response.status_code == 200 and '"responseStatus":"OK"' in response.text:
-            summary = f"""t-השלוחה נוצרה בהצלחה!
-שלוחה: {clean_ext}
-הקשות: {digits}
-קול: {selected_voice}"""
+          summary = f"""t-מעולה! השלוחה נוצרה בהצלחה.
+שלוחה {clean_ext}.
+כמות הקשות {digits}.
+קול רובוטי {selected_voice}.
+בהצלחה רבה!"""
             return ym_say_and_hangup(summary)
         else:
             return ym_say_and_hangup("t-שגיאה בהעלאה.")
