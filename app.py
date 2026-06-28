@@ -23,6 +23,11 @@ def ym_say_and_hangup(text: str):
     return ym_response(f"id_list_message={text}\nend=true")
 
 
+def ym_say(text: str):
+    """משמיע הודעה בלי לנתק."""
+    return ym_response(f"say={text}")
+
+
 @app.route('/create-menu', methods=['GET', 'POST'])
 def create_menu():
     system = request.values.get('system')
@@ -109,9 +114,8 @@ default=action:transfer $EXT
         logging.info(f"UploadTextFile: {r2.status_code} - {r2.text}")
 
         if r2.status_code == 200 and '"responseStatus":"OK"' in r2.text:
-            hash_status = "פעיל" if hash_setting == "1" else "לא פעיל"
             msg = f"t-השלוחה {clean_ext} נוצרה. ספרות: {digits}. קול: {selected_voice}"
-            return ym_say_and_hangup(msg)   # מנתק בסוף – עובד יציב
+            return ym_say(msg)   # משמיע הודעה, לא מנתק – אמור לחזור אוטומטית
         else:
             return ym_say_and_hangup("t-השלוחה נוצרה אך התפריט לא נטען")
 
