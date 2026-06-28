@@ -22,7 +22,6 @@ def ym_say_and_hangup(text: str):
 
 @app.route('/create-menu', methods=['GET', 'POST'])
 def create_menu():
-    # קבלת כל הנתונים
     system = request.values.get('system')
     password = request.values.get('password')
     extension = request.values.get('extension')
@@ -32,30 +31,18 @@ def create_menu():
     voice_choice = request.values.get('voice_choice')
     hash_setting = request.values.get('hash_setting')
 
-    # שלבים
-    if not system:   return ym_read("system",       "t-אנא הקישו את מספר המערכת ובסיומה סולמית", 10)
-    if not password: return ym_read("password",     "t-אנא הקישו את סיסמת המערכת ובסיומה סולמית", 10)
-    if not extension: return ym_read("extension",   "t-אנא הקישו את מספר השלוחה החדשה ובסיומה סולמית", 10)
+    # אם יש את כל הפרמטרים — עוברים ישר ליצירה
+    if system and password and extension and change_default and (num_digits or change_default == "0") and change_voice and (voice_choice or change_voice == "0") and hash_setting:
+        try:
+            token = f"{system.strip()}:{password.strip()}"
+            clean_ext = extension.strip().replace("*", "/").replace("-", "/").strip("/")
 
-    if not change_default: return ym_read("change_default", "t-האם לשנות ברירת מחדל של הקשות? 1-כן 0-לא", 1)
-    if change_default == "1" and not num_digits: return ym_read("num_digits", "t-כמה ספרות? 1-9", 1)
+            digits = int(num_digits) if num_digits and num_digits.isdigit() else 1
+            voices = {"1": "he-male", "2": "he-female", "3": "he-il-2"}
+            selected_voice = voices.get(voice_choice, "he-il-1") if change_voice == "1" else "he-il-1"
+            hash_line = "hash_extension=yes" if hash_setting == "1" else ""
 
-    if not change_voice: return ym_read("change_voice", "t-לבחור קול רובוטי? 1-כן 0-לא", 1)
-    if change_voice == "1" and not voice_choice: return ym_read("voice_choice", "t-בחר קול: 1-זכר 2-נקבה 3-מהיר", 1)
-
-    if not hash_setting: return ym_read("hash_setting", "t-האם להפעיל # כשלוחה נפרדת? 1-כן 0-לא", 1)
-
-    # ====================== יצירה ======================
-    try:
-        token = f"{system.strip()}:{password.strip()}"
-        clean_ext = extension.strip().replace("*", "/").replace("-", "/").strip("/")
-
-        digits = int(num_digits) if num_digits and num_digits.isdigit() else 1
-        voices = {"1": "he-male", "2": "he-female", "3": "he-il-2"}
-        selected_voice = voices.get(voice_choice, "he-il-1") if change_voice == "1" else "he-il-1"
-        hash_line = "hash_extension=yes" if hash_setting == "1" else ""
-
-        ext_ini = f"""type=menu
+            ext_ini = f"""type=menu
 title=תפריט אוטומטי
 invalid=הקשת שגויה, נסה שוב
 timeout=הזמן נגמר, להתראות
@@ -64,35 +51,47 @@ max_digits={digits}
 menu_voice={selected_voice}
 """
 
-        print(f"מנסה ליצור שלוחה: {clean_ext}")
+            print(f"יוצר שלוחה: {clean_ext}")
 
-        # יצירת שלוחה
-        requests.post(f"{YEMOT_API_URL}UpdateExtension", params={
-            "token": token,
-            "ext": clean_ext,
-            "name": f"תפריט {clean_ext}",
-            "type": "ivr"
-        }, timeout=10)
+            # יצירת שלוחה
+            requests.post(f"{YEMOT_API_URL}UpdateExtension", params={
+                "token": token,
+                "ext": clean_ext,
+                "name": f"תפריט {clean_ext}",
+                "type": "ivr"
+            }, timeout=10)
 
-        # העלאת ext.ini
-        r = requests.post(f"{YEMOT_API_URL}UploadTextFile", params={
-            "token": token,
-            "what": f"ivr2:/{clean_ext}/ext.ini",
-            "contents": ext_ini
-        }, timeout=15)
+            # העלאת ext.ini
+            r = requests.post(f"{YEMOT_API_URL}UploadTextFile", params={
+                "token": token,
+                "what": f"ivr2:/{clean_ext}/ext.ini",
+                "contents": ext_ini
+            }, timeout=15)
 
-        print("Status:", r.status_code)
-        print("Response:", r.text)
+            print("Status:", r.status_code)
+            print("Response:", r.text)
 
-        if r.status_code == 200 and '"responseStatus":"OK"' in r.text:
-            hash_status = "מופעל" if hash_setting == "1" else "חוזר"
-            return ym_say_and_hangup(f"t-השלוחה {clean_ext} נוצרה בהצלחה!\nהקשות: {digits}\nקול: {selected_voice}\nסולמית: {hash_status}")
-        else:
-            return ym_say_and_hangup("t-שגיאה בהעלאה.")
+            if r.status_code == 200 and '"responseStatus":"OK"' in r.text:
+                hash_status = "מופעל" if hash_setting == "1" else "חוזר"
+                return ym_say_and_hangup(f"t-השלוחה {clean_ext} נוצרה בהצלחה! הקשות {digits} קול {selected_voice} סולמית {hash_status}")
+            else:
+                return ym_say_and_hangup("t-שגיאה בהעלאה.")
 
-    except Exception as e:
-        print("שגיאה:", str(e))
-        return ym_say_and_hangup("t-שגיאה. נסה שוב.")
+        except Exception as e:
+            print("שגיאה:", str(e))
+            return ym_say_and_hangup("t-שגיאה טכנית.")
+
+    # אם חסר משהו — ממשיך בשאלות
+    if not system: return ym_read("system", "t-אנא הקישו את מספר המערכת ובסיומה סולמית", 10)
+    if not password: return ym_read("password", "t-אנא הקישו את סיסמת המערכת ובסיומה סולמית", 10)
+    if not extension: return ym_read("extension", "t-אנא הקישו את מספר השלוחה החדשה ובסיומה סולמית", 10)
+    if not change_default: return ym_read("change_default", "t-האם לשנות ברירת מחדל של הקשות? 1-כן 0-לא", 1)
+    if change_default == "1" and not num_digits: return ym_read("num_digits", "t-כמה ספרות? 1-9", 1)
+    if not change_voice: return ym_read("change_voice", "t-לבחור קול רובוטי? 1-כן 0-לא", 1)
+    if change_voice == "1" and not voice_choice: return ym_read("voice_choice", "t-בחר קול: 1-זכר 2-נקבה 3-מהיר", 1)
+    if not hash_setting: return ym_read("hash_setting", "t-האם להפעיל # כשלוחה נפרדת? 1-כן 0-לא", 1)
+
+    return ym_say_and_hangup("t-שגיאה. נסה שוב.")
 
 
 if __name__ == '__main__':
