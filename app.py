@@ -25,7 +25,7 @@ def ym_say_and_hangup(text: str):
 
 @app.route('/create-menu', methods=['GET', 'POST'])
 def create_menu():
-    # קבלת פרמטרים
+    # פרמטרים
     system = request.values.get('system')
     password = request.values.get('password')
     extension = request.values.get('extension')
@@ -61,12 +61,10 @@ def create_menu():
 
     # ===================== יצירה =====================
     try:
-        # ---------- טיפול בנתיב: המרת * לסלאש ----------
-        # המשתמש יכול להקליד 4*5*2 וזה יהפוך ל-4/5/2
+        # ----- ניקוי השלוחה (תומך בכוכבית ומקף) -----
         clean_ext = extension.strip().replace('*', '/').replace('-', '/').strip('/')
-        # לוודא שיש רק ספרות וסלאשים (לא נשארו תווים לא חוקיים)
-        if not re.match(r'^[\d/]+$', clean_ext):
-            return ym_say_and_hangup("t-שגיאה: השלוחה חייבת להכיל ספרות, כוכבית או מקף בלבד.")
+        if not clean_ext:
+            return ym_say_and_hangup("t-שגיאה: השלוחה ריקה.")
 
         token = f"{system.strip()}:{password.strip()}"
         digits = int(num_digits) if (num_digits and num_digits.isdigit()) else 1
@@ -92,8 +90,7 @@ menu_voice={selected_voice}
 default=action:transfer $EXT
 """
 
-        # ---------- שלב 1: יצירת השלוחה (עובד גם לחדשה) ----------
-        # שים לב: clean_ext מכיל עכשיו סלאשים, כמו "4/5" או "4/5/2"
+        # ---------- שלב 1: יצירת השלוחה (UpdateExtension) ----------
         r1 = requests.get(
             f"{YEMOT_API_URL}UpdateExtension",
             params={
@@ -107,10 +104,10 @@ default=action:transfer $EXT
         logging.info(f"UpdateExtension: {r1.status_code} - {r1.text}")
 
         if not (r1.status_code == 200 and '"responseStatus":"OK"' in r1.text):
-            return ym_say_and_hangup("t-שגיאה ביצירת השלוחה. בדקו את הפרטים.")
+            # הודעה קצרה במקרה של כישלון
+            return ym_say_and_hangup("t-שגיאה ביצירת השלוחה")
 
-        # ---------- שלב 2: העלאת קובץ התפריט ----------
-        # גם כאן, הנתיב כולל סלאשים כדי לייצג היררכיה
+        # ---------- שלב 2: העלאת קובץ התפריט (UploadTextFile) ----------
         r2 = requests.post(
             f"{YEMOT_API_URL}UploadTextFile",
             params={
@@ -122,13 +119,15 @@ default=action:transfer $EXT
         )
         logging.info(f"UploadTextFile: {r2.status_code} - {r2.text}")
 
+        # ---------- שלב 3: הודעת סיכום (קצרה!) ----------
         if r2.status_code == 200 and '"responseStatus":"OK"' in r2.text:
-            hash_status = "מופעל כשלוחה נפרדת" if hash_setting == "1" else "חוזר לתפריט"
-            return ym_say_and_hangup(
-                f"t-השלוחה {clean_ext} נוצרה! הקשות {digits} קול {selected_voice} סולמית: {hash_status}"
-            )
+            # בניית הודעה קצרה - ללא יותר מדי פרטים
+            hash_status = "פעיל" if hash_setting == "1" else "לא פעיל"
+            msg = f"t-השלוחה {clean_ext} נוצרה. ספרות: {digits}. קול: {selected_voice}"
+            return ym_say_and_hangup(msg)
         else:
-            return ym_say_and_hangup("t-השלוחה נוצרה אך הגדרות התפריט לא נטענו.")
+            # השלוחה נוצרה אבל התפריט לא נטען
+            return ym_say_and_hangup("t-השלוחה נוצרה אך התפריט לא נטען")
 
     except Exception as e:
         logging.exception("שגיאה")
