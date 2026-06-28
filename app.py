@@ -8,24 +8,21 @@ YEMOT_API_URL = "https://www.call2all.co.il/ym/api/"
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-
 def ym_response(content: str):
     res = make_response(content)
     res.headers["Content-Type"] = "text/plain; charset=utf-8"
     return res
 
-
 def ym_read(var_name: str, prompt: str, max_digits=1):
     return ym_response(f"read={prompt}={var_name},{max_digits},12,1,Digits")
 
-
-def ym_say_and_transfer(text: str, target: str):
-    """משמיע הודעה ומעביר לתפריט ראשי."""
-    return ym_response(f"id_list_message={text}\ntransfer={target}")
-
+def ym_say_and_hangup(text: str):
+    # הודעה + סיום מוחלט
+    return ym_response(f"id_list_message={text}\nend=true")
 
 @app.route('/create-menu', methods=['GET', 'POST'])
 def create_menu():
+    # קבלת פרמטרים מה-IVR
     system = request.values.get('system')
     password = request.values.get('password')
     extension = request.values.get('extension')
@@ -35,6 +32,7 @@ def create_menu():
     voice_choice = request.values.get('voice_choice')
     hash_setting = request.values.get('hash_setting')
 
+    # שלב 1-3
     if not system:
         return ym_read("system", "t-אנא הקישו את מספר המערכת ובסיומה סולמית", 10)
     if not password:
@@ -56,9 +54,10 @@ def create_menu():
         return ym_read("hash_setting", "t-האם להפעיל את מקש הסולמית # כשלוחה נפרדת? 1-כן 0-לא", 1)
 
     try:
+        # ניקוי שלוחה (תמיכה בכוכבית ומקף)
         clean_ext = extension.strip().replace('*', '/').replace('-', '/').strip('/')
         if not clean_ext:
-            return ym_say_and_transfer("t-שגיאה: השלוחה ריקה", "100")
+            return ym_say_and_hangup("t-שגיאה: השלוחה ריקה")
 
         token = f"{system.strip()}:{password.strip()}"
         digits = int(num_digits) if (num_digits and num_digits.isdigit()) else 1
@@ -83,6 +82,7 @@ menu_voice={selected_voice}
 default=action:transfer $EXT
 """
 
+        # יצירת השלוחה
         r1 = requests.get(
             f"{YEMOT_API_URL}UpdateExtension",
             params={
@@ -96,8 +96,9 @@ default=action:transfer $EXT
         logging.info(f"UpdateExtension: {r1.status_code} - {r1.text}")
 
         if not (r1.status_code == 200 and '"responseStatus":"OK"' in r1.text):
-            return ym_say_and_transfer("t-שגיאה ביצירת השלוחה", "100")
+            return ym_say_and_hangup("t-שגיאה ביצירת השלוחה")
 
+        # העלאת קובץ התפריט
         r2 = requests.post(
             f"{YEMOT_API_URL}UploadTextFile",
             params={
@@ -111,15 +112,13 @@ default=action:transfer $EXT
 
         if r2.status_code == 200 and '"responseStatus":"OK"' in r2.text:
             msg = f"t-השלוחה {clean_ext} נוצרה. ספרות: {digits}. קול: {selected_voice}"
-            # משמיע הודעה ומעביר לתפריט ראשי 100
-            return ym_say_and_transfer(msg, "100")
+            return ym_say_and_hangup(msg)
         else:
-            return ym_say_and_transfer("t-השלוחה נוצרה אך התפריט לא נטען", "100")
+            return ym_say_and_hangup("t-השלוחה נוצרה אך התפריט לא נטען")
 
     except Exception as e:
         logging.exception("שגיאה")
-        return ym_say_and_transfer("t-שגיאה טכנית. נסה שוב", "100")
-
+        return ym_say_and_hangup("t-שגיאה טכנית. נסה שוב")
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
