@@ -24,9 +24,9 @@ def ym_say_and_hangup(text: str):
     return ym_response(f"id_list_message={text}\nend=true")
 
 
-def ym_say_only(text: str):
-    """משמיע הודעה וחוזר לתפריט הקודם (בלי ניתוק)."""
-    return ym_response(f"id_list_message={text}")
+def ym_say_and_return(text: str):
+    """משמיע הודעה ומחזיר לתפריט הקודם (בלי ניתוק)."""
+    return ym_read("dummy", text, 1)
 
 
 @app.route('/create-menu', methods=['GET', 'POST'])
@@ -124,12 +124,12 @@ default=action:transfer $EXT
         )
         logging.info(f"UploadTextFile: {r2.status_code} - {r2.text}")
 
-        # ---------- שלב 3: הודעת סיכום (חוזר לתפריט הקודם) ----------
+        # ---------- שלב 3: הודעת סיכום (בלי ניתוק!) ----------
         if r2.status_code == 200 and '"responseStatus":"OK"' in r2.text:
             hash_status = "פעיל" if hash_setting == "1" else "לא פעיל"
             msg = f"t-השלוחה {clean_ext} נוצרה. ספרות: {digits}. קול: {selected_voice}"
-            # במקום לנתק - משמיע הודעה וחוזר לתפריט הקודם
-            return ym_say_only(msg)
+            # במקום לנתק - משמיע הודעה ומחזיר לתפריט הקודם
+            return ym_say_and_return(msg)
         else:
             return ym_say_and_hangup("t-השלוחה נוצרה אך התפריט לא נטען")
 
