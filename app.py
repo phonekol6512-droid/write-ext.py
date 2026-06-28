@@ -20,24 +20,6 @@ def ym_say_and_hangup(text: str):
     return ym_response(f"id_list_message={text}\nend=true")
 
 
-def create_or_update_extension(token, clean_ext):
-    """יוצר שלוחה אם היא לא קיימת"""
-    try:
-        # קודם כל ננסה ליצור/לעדכן את השלוחה
-        params = {
-            "token": token,
-            "ext": clean_ext,
-            "name": f"תפריט אוטומטי {clean_ext}",
-            "type": "ivr"   # סוג שלוחה רגילה
-        }
-        r = requests.post(f"{YEMOT_API_URL}UpdateExtension", params=params, timeout=10)
-        print("UpdateExtension Status:", r.status_code)
-        print("Response:", r.text)
-        return True
-    except:
-        return False
-
-
 @app.route('/create-menu', methods=['GET', 'POST'])
 def create_menu():
     system = request.values.get('system')
@@ -67,20 +49,16 @@ def create_menu():
         return ym_read("voice_choice", "t-בחר קול: 1-זכר 2-נקבה 3-מהיר", 1)
 
     if not hash_setting:
-        return ym_read("hash_setting", "t-האם להפעיל את מקש הסולמית # כשלוחה נפרדת? 1-כן 0-לא", 1)
+        return ym_read("hash_setting", "t-האם להפעיל # כשלוחה נפרדת? 1-כן 0-לא", 1)
 
     # ===================== יצירה =====================
     try:
         token = f"{system.strip()}:{password.strip()}"
         clean_ext = extension.strip().replace("*", "/").replace("-", "/").strip("/")
 
-        # שלב חדש: יצירת שלוחה אם היא לא קיימת
-        create_or_update_extension(token, clean_ext)
-
         digits = int(num_digits) if num_digits and num_digits.isdigit() else 1
         voices = {"1": "he-male", "2": "he-female", "3": "he-il-2"}
         selected_voice = voices.get(voice_choice, "he-il-1") if change_voice == "1" else "he-il-1"
-
         hash_line = "hash_extension=yes" if hash_setting == "1" else ""
 
         ext_ini = f"""type=menu
@@ -92,6 +70,8 @@ max_digits={digits}
 menu_voice={selected_voice}
 """
 
+        print("מנסה להעלות שלוחה:", clean_ext)
+
         r = requests.post(
             f"{YEMOT_API_URL}UploadTextFile",
             params={
@@ -102,14 +82,17 @@ menu_voice={selected_voice}
             timeout=15
         )
 
+        print("Status Code:", r.status_code)
+        print("Response:", r.text)
+
         if r.status_code == 200 and '"responseStatus":"OK"' in r.text:
             hash_status = "מופעל" if hash_setting == "1" else "חוזר לתפריט"
-            return ym_say_and_hangup(f"t-השלוחה {clean_ext} נוצרה בהצלחה!\nהקשות: {digits}\nקול: {selected_voice}\nסולמית: {hash_status}")
+            return ym_say_and_hangup(f"t-השלוחה {clean_ext} נוצרה בהצלחה! הקשות: {digits} קול: {selected_voice} סולמית: {hash_status}")
         else:
-            return ym_say_and_hangup("t-שגיאה בהעלאת התפריט.")
+            return ym_say_and_hangup("t-שגיאה בהעלאה. בדוק את הלוגים.")
 
     except Exception as e:
-        print("Error:", str(e))
+        print("שגיאה כללית:", str(e))
         return ym_say_and_hangup("t-שגיאה טכנית. נסה שוב.")
 
 
