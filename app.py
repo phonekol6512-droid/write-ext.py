@@ -20,12 +20,13 @@ def ym_read(var_name: str, prompt: str, max_digits=1):
 
 
 def ym_say_and_hangup(text: str):
+    """משמיע הודעה ומנתק את השיחה."""
     return ym_response(f"id_list_message={text}\nend=true")
 
 
-def ym_menu_with_choice(text: str, var_name: str, prompt: str, max_digits=1):
-    """משמיע הודעה ואז שואל בחירה (בלי לנתק)"""
-    return ym_response(f"id_list_message={text}\nread={prompt}={var_name},{max_digits},12,1,Digits")
+def ym_say_only(text: str):
+    """משמיע הודעה וחוזר לתפריט הקודם (בלי ניתוק)."""
+    return ym_response(f"id_list_message={text}")
 
 
 @app.route('/create-menu', methods=['GET', 'POST'])
@@ -39,7 +40,6 @@ def create_menu():
     change_voice = request.values.get('change_voice')
     voice_choice = request.values.get('voice_choice')
     hash_setting = request.values.get('hash_setting')
-    menu_choice = request.values.get('menu_choice')  # בחירת המשתמש בסוף
 
     # שלב 1-3
     if not system:
@@ -65,20 +65,9 @@ def create_menu():
     if not hash_setting:
         return ym_read("hash_setting", "t-האם להפעיל את מקש הסולמית # כשלוחה נפרדת? 1-כן 0-לא", 1)
 
-    # ---------- שלב 7: טיפול בבחירה בסוף התהליך ----------
-    if menu_choice:
-        if menu_choice == "1":
-            # המשתמש בחר לסיים
-            return ym_say_and_hangup("t-להתראות")
-        elif menu_choice == "2":
-            # המשתמש בחר לחזור לתפריט הראשי
-            # נניח שהתפריט הראשי נמצא בשלוחה 100 (ניתן לשנות)
-            return ym_response("id_list_message=t-חוזר לתפריט הראשי\naction=transfer 100")
-        else:
-            return ym_say_and_hangup("t-בחירה לא תקינה. להתראות.")
-
-    # ===================== יצירת השלוחה =====================
+    # ===================== יצירה =====================
     try:
+        # ניקוי השלוחה (תומך בכוכבית ומקף)
         clean_ext = extension.strip().replace('*', '/').replace('-', '/').strip('/')
         if not clean_ext:
             return ym_say_and_hangup("t-שגיאה: השלוחה ריקה.")
@@ -86,6 +75,7 @@ def create_menu():
         token = f"{system.strip()}:{password.strip()}"
         digits = int(num_digits) if (num_digits and num_digits.isdigit()) else 1
 
+        # מיפוי קולות
         voice_map = {
             "1": "Elik_2100",
             "2": "Jacob",
@@ -134,17 +124,12 @@ default=action:transfer $EXT
         )
         logging.info(f"UploadTextFile: {r2.status_code} - {r2.text}")
 
-        # ---------- שלב 3: הודעה + שאלה (בלי לנתק) ----------
+        # ---------- שלב 3: הודעת סיכום (חוזר לתפריט הקודם) ----------
         if r2.status_code == 200 and '"responseStatus":"OK"' in r2.text:
-            # הודעה ראשונה
-            msg1 = f"t-השלוחה {clean_ext} נוצרה. ספרות: {digits}. קול: {selected_voice}"
-            # ואז שואלים: לסיום לחץ 1, לחזור לתפריט ראשי לחץ 2
-            return ym_menu_with_choice(
-                text=msg1,
-                var_name="menu_choice",
-                prompt="t-לסיום לחץ 1, לחזור לתפריט ראשי לחץ 2",
-                max_digits=1
-            )
+            hash_status = "פעיל" if hash_setting == "1" else "לא פעיל"
+            msg = f"t-השלוחה {clean_ext} נוצרה. ספרות: {digits}. קול: {selected_voice}"
+            # במקום לנתק - משמיע הודעה וחוזר לתפריט הקודם
+            return ym_say_only(msg)
         else:
             return ym_say_and_hangup("t-השלוחה נוצרה אך התפריט לא נטען")
 
