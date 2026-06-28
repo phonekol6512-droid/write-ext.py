@@ -62,7 +62,10 @@ def ym_read(var_name, text):
 
 
 def ym_say_and_hangup(text):
-    res = make_response(f"id_list_message={text}")
+    res = make_response(
+        f"id_list_message={text}\n"
+        f"hangup=yes"
+    )
     res.headers["Content-Type"] = "text/plain; charset=utf-8"
     return res
 
