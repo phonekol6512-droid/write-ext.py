@@ -13,19 +13,11 @@ def ym_response(content: str):
 
 
 def ym_read(var_name: str, prompt: str, max_digits=1):
-    """שאלה + המשך שיחה"""
     content = f"read={prompt}={var_name},{max_digits},12,1,Digits"
     return ym_response(content)
 
 
-def ym_say(text: str):
-    """השמעה בלי לנתק"""
-    content = f"id_list_message={text}"
-    return ym_response(content)
-
-
 def ym_say_and_hangup(text: str):
-    """השמעה + ניתוק"""
     content = f"id_list_message={text}\nend=true"
     return ym_response(content)
 
@@ -35,46 +27,43 @@ def create_menu():
     system = request.values.get('system')
     password = request.values.get('password')
     extension = request.values.get('extension')
-    default_digits = request.values.get('default_digits')
-    confirm = request.values.get('confirm')
+    change_default = request.values.get('change_default')   # 1 = כן לשנות, 0 = לא
+    num_digits = request.values.get('num_digits')           # כמות ההקשות אם בחר לשנות
 
-    # שלב 1: מספר מערכת
+    # 1. מספר מערכת
     if not system:
         return ym_read("system", "t-אנא הקישו את מספר המערכת ובסיומה סולמית", 10)
 
-    # שלב 2: סיסמה
+    # 2. סיסמה
     if not password:
         return ym_read("password", "t-אנא הקישו את סיסמת המערכת ובסיומה סולמית", 10)
 
-    # שלב 3: מספר שלוחה
+    # 3. מספר שלוחה
     if not extension:
         return ym_read("extension", "t-אנא הקישו את מספר השלוחה החדשה ובסיומה סולמית", 10)
 
-    # שלב 4: כמה ספרות בברירת מחדל
-    if not default_digits:
-        return ym_read("default_digits", "t-כמה ספרות יקלוט התפריט כברירת מחדל? (1-9)", 1)
+    # 4. שאלת שינוי ברירת מחדל
+    if not change_default:
+        prompt = "t-האם אתה רוצה לשנות את ברירת המחדל של ההקשות? הקש 1 לשינוי, 0 להמשיך ללא שינוי"
+        return ym_read("change_default", prompt, 1)
 
-    # שלב 5: אישור
-    if not confirm:
-        msg = f"t-ברירת המחדל תהיה {default_digits} ספרות. להמשיך? הקש 1 לאישור, 0 לשינוי"
-        return ym_read("confirm", msg, 1)
+    # 5. אם בחר לשנות - שואל כמה ספרות
+    if change_default == "1" and not num_digits:
+        return ym_read("num_digits", "t-כמה הקשות (ספרות) ברצונך שיהיו בתפריט? (1-9)", 1)
 
     try:
         token = f"{system.strip()}:{password.strip()}"
         clean_ext = extension.strip().replace("*", "/").replace("-", "/").strip("/")
 
-        # אם ביקש לשנות
-        if confirm == "0":
-            return ym_read("default_digits", "t-כמה ספרות ברצונך שהתפריט יקלוט? (1-9)", 1)
+        # קביעת כמות הספרות
+        digits = int(num_digits) if num_digits and num_digits.isdigit() else 1
 
-        num_digits = int(default_digits) if default_digits.isdigit() else 1
-
-        # בניית התפריט
+        # בניית ext.ini
         ext_ini = f"""type=menu
 title=תפריט שנבנה אוטומטית
 invalid=הקשת שגויה, נסה שוב
 timeout=הזמן נגמר, להתראות
-max_digits={num_digits}
+max_digits={digits}
 hash_extension=yes
 
 1=go_to:option1
@@ -83,7 +72,7 @@ hash_extension=yes
 #=go_to:main
 """
 
-        # העלאה
+        # העלאה לימות
         upload_url = f"{YEMOT_API_URL}UploadTextFile"
         params = {
             "token": token,
@@ -97,9 +86,9 @@ hash_extension=yes
         print("Response:", response.text)
 
         if response.status_code == 200 and '"responseStatus":"OK"' in response.text:
-            return ym_say_and_hangup(f"t-השלוחה {clean_ext} נוצרה בהצלחה! ברירת מחדל: {num_digits} ספרות.")
+            return ym_say_and_hangup(f"t-השלוחה {clean_ext} נוצרה בהצלחה! ברירת מחדל: {digits} ספרות.")
         else:
-            return ym_say_and_hangup("t-שגיאה בהעלאת השלוחה. בדוק את הפרטים.")
+            return ym_say_and_hangup("t-שגיאה בהעלאת השלוחה.")
 
     except Exception as e:
         print("Error:", str(e))
