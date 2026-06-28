@@ -81,10 +81,10 @@ menu_voice={selected_voice}
 
         if response.status_code == 200 and '"responseStatus":"OK"' in response.text:
             # סיכום משופר עם הפסקות
-            summary = f"""t-מעולה! השלוחה נוצרה בהצלחה.
-שלוחה {clean_ext}.
-כמות הקשות {digits}.
-קול רובוטי {selected_voice}.
+            summary = f"""t-מעולה! השלוחה נוצרה בהצלחה,
+שלוחה {clean_ext},
+כמות הקשות {digits},
+קול רובוטי {selected_voice},
 בהצלחה רבה!"""
             return ym_say_and_hangup(summary)
         else:
