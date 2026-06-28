@@ -52,14 +52,14 @@ def create_menu():
     if change_default == "1" and not num_digits:
         return ym_read("num_digits", "t-כמה הקשות (ספרות) ברצונך שיהיו בתפריט? (1-9)", 1)
 
-    # 5. שאלת קול (חדש)
+    # 5. שאלת קול
     if not change_voice:
         return ym_read("change_voice", "t-לבחור קול רובוטי? 1-כן 0-לא", 1)
 
     if change_voice == "1" and not voice_choice:
         return ym_read("voice_choice", "t-בחר קול: 1-אליק 2-יעקב 3-סיוון 4-אסנת", 1)
 
-    # 6. שאלת סולמית (חדש)
+    # 6. שאלת סולמית
     if not hash_setting:
         return ym_read("hash_setting", "t-האם להפעיל את מקש הסולמית # כשלוחה נפרדת? 1-כן 0-לא", 1)
 
@@ -86,7 +86,24 @@ def create_menu():
         # הגדרת סולמית
         hash_line = "hash_extension=yes" if hash_setting == "1" else ""
 
-        # בניית ext.ini (בדיוק כמו המקורי, עם תוספות)
+        # ---------- שלב 1: יצירת השלוחה (אם לא קיימת) ----------
+        r1 = requests.get(
+            f"{YEMOT_API_URL}UpdateExtension",
+            params={
+                "token": token,
+                "path": f"ivr2:{clean_ext}",
+                "type": "menu",
+                "max_digits": digits
+            },
+            timeout=15
+        )
+        print("UpdateExtension Status:", r1.status_code)
+        print("UpdateExtension Response:", r1.text)
+
+        if not (r1.status_code == 200 and '"responseStatus":"OK"' in r1.text):
+            return ym_say_and_hangup("t-שגיאה ביצירת השלוחה")
+
+        # ---------- שלב 2: בניית קובץ התפריט ----------
         ext_ini = f"""type=menu
 title=תפריט שנבנה אוטומטית
 invalid=הקשת שגויה, נסה שוב
@@ -97,23 +114,23 @@ menu_voice={selected_voice}
 default=go_to:$EXT
 """
 
-        # העלאה לימות (רק UploadTextFile, ללא UpdateExtension)
-        upload_url = f"{YEMOT_API_URL}UploadTextFile"
-        params = {
-            "token": token,
-            "what": f"ivr2:/{clean_ext}/ext.ini",
-            "contents": ext_ini
-        }
+        # ---------- שלב 3: העלאת קובץ התפריט ----------
+        r2 = requests.post(
+            f"{YEMOT_API_URL}UploadTextFile",
+            params={
+                "token": token,
+                "what": f"ivr2:/{clean_ext}/ext.ini",
+                "contents": ext_ini
+            },
+            timeout=15
+        )
+        print("UploadTextFile Status:", r2.status_code)
+        print("UploadTextFile Response:", r2.text)
 
-        response = requests.post(upload_url, params=params, timeout=15)
-
-        print("Status:", response.status_code)
-        print("Response:", response.text)
-
-        if response.status_code == 200 and '"responseStatus":"OK"' in response.text:
+        if r2.status_code == 200 and '"responseStatus":"OK"' in r2.text:
             return ym_say_and_hangup(f"t-השלוחה {clean_ext} נוצרה בהצלחה! ספרות: {digits}, קול: {selected_voice}")
         else:
-            return ym_say_and_hangup("t-שגיאה בהעלאת השלוחה.")
+            return ym_say_and_hangup("t-השלוחה נוצרה אך התפריט לא נטען")
 
     except Exception as e:
         print("Error:", str(e))
