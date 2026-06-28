@@ -24,7 +24,6 @@ def ym_say_and_hangup(text: str):
 
 @app.route('/create-menu', methods=['GET', 'POST'])
 def create_menu():
-    # קבלת כל המשתנים
     system = request.values.get('system')
     password = request.values.get('password')
     extension = request.values.get('extension')
@@ -32,8 +31,6 @@ def create_menu():
     num_digits = request.values.get('num_digits')
     change_voice = request.values.get('change_voice')
     voice_choice = request.values.get('voice_choice')
-
-    # ================ שלבים לפי סדר ================
 
     if not system:
         return ym_read("system", "t-אנא הקישו את מספר המערכת ובסיומה סולמית", 10)
@@ -48,16 +45,15 @@ def create_menu():
         return ym_read("change_default", "t-האם לשנות את ברירת המחדל של ההקשות? 1-כן 0-לא", 1)
 
     if change_default == "1" and not num_digits:
-        return ym_read("num_digits", "t-כמה הקשות (ספרות) ברצונך? (1-9)", 1)
+        return ym_read("num_digits", "t-כמה ספרות יקלוט התפריט? 1 עד 9", 1)
 
     if not change_voice:
-        return ym_read("change_voice", "t-האם ברצונך לבחור קול רובוטי? 1-כן 0-לא", 1)
+        return ym_read("change_voice", "t-האם ברצונך לבחור קול רובוטי להודעות? 1-כן 0-לא", 1)
 
-    # אם בחר כן לשנות קול אבל עדיין לא בחר איזה קול
     if change_voice == "1" and not voice_choice:
-        return ym_read("voice_choice", "t-בחר קול:\n1 - זכר רגיל\n2 - נקבה\n3 - קול מהיר\nהקש את המספר", 1)
+        return ym_read("voice_choice", "t-בחר קול: 1-זכר, 2-נקבה, 3-קול מהיר. הקש מספר", 1)
 
-    # ================ שלב סופי - יצירת השלוחה ================
+    # ================ יצירת השלוחה ================
     try:
         token = f"{system.strip()}:{password.strip()}"
         clean_ext = extension.strip().replace("*", "/").replace("-", "/").strip("/")
@@ -86,13 +82,14 @@ menu_voice={selected_voice}
         response = requests.post(upload_url, params=params, timeout=15)
 
         if response.status_code == 200 and '"responseStatus":"OK"' in response.text:
-            summary = f"""t-השלוחה נוצרה בהצלחה!
+            summary = f"""t-מעולה! השלוחה נוצרה בהצלחה.
 שלוחה: {clean_ext}
-הקשות: {digits}
-קול רובוטי: {selected_voice}"""
+כמות הקשות: {digits}
+קול רובוטי: {selected_voice}
+בהצלחה רבה!"""
             return ym_say_and_hangup(summary)
         else:
-            return ym_say_and_hangup("t-שגיאה בהעלאת השלוחה.")
+            return ym_say_and_hangup("t-שגיאה בהעלאת השלוחה. בדוק את הפרטים.")
 
     except Exception as e:
         print("Error:", str(e))
