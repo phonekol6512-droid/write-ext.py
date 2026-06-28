@@ -9,7 +9,7 @@ YEMOT_API_URL = "https://call2all.co.il"
 def write_ext_module():
     extracted = {}
 
-    # 🌟 סריקה חכמה לקריאת הגדרות קבועות מה-ext.ini (הנוסחה המנצחת שלך!) 🌟
+    # סריקה חכמה לקריאת הגדרות קבועות מה-ext.ini (הנוסחה היציבה והבדוקה שלך!)
     for key, value in request.values.items():
         key_str = str(key).strip()
         val_str = str(value).strip()
@@ -21,12 +21,12 @@ def write_ext_module():
         if "key2" in key_str or "key2" in val_str:
             extracted['key2'] = val_str.split('=')[-1] if '=' in val_str else val_str
 
-    # שליפת המשתנים הסופיים: עדיפות ראשונה למה שחולץ מהקובץ, עדיפות שנייה להקשה בטלפון
+    # שליפת המשתנים הסופיים
     system_dst = extracted.get('login2') or request.values.get('system_dst')
     pass_dst = extracted.get('password2') or request.values.get('pass_dst')
     ext_dst = extracted.get('key2') or request.values.get('ext_dst')
 
-    # שלבי השאלות בטלפון - ישאל אך ורק את מה שלא קיים בשום מקום (ריק)
+    # שלבי השאלות בטלפון - ישאל אך ורק את מה שלא קיים בקובץ (ריק)
     if not system_dst or str(system_dst).strip() == "": 
         return ym_read("system_dst", "t-אנא הקישו את מספר המערכת ובסיומה סולמית")
     if not pass_dst or str(pass_dst).strip() == "":   
@@ -38,10 +38,10 @@ def write_ext_module():
         token_dst = f"{system_dst.strip()}:{pass_dst.strip()}"
         clean_dst = ext_dst.strip().replace('*', '/').replace('-', '/').strip('/')
         
-        # 🌟 הקידוד המושלם והמתוקן: "type=menu\ntitle=נבנה באמצעות פון קול" ללא שגיאות כתיב!
-        encoded_ini = "type%3Dmenu%0Atitle%3D%D7%A0%D7%91%D7%A0%D7%94%20%D7%91%D7%90%D7%94%D7%A6%D7%A2%D7%95%D7%AA%20%D7%A4%D7%95%D7%9F%20%D7%A3%D7%95%D7%9C"
+        # 🌟 טקסט אנגלי נקי לחלוטין ללא שום אות בעברית או הצפנות שיכולות להכשיל את ה-API!
+        encoded_ini = "type%3Dmenu%0Atitle%3DPhone-Kol"
 
-        # שליחה ישירה ב-URL בדיוק כפי ששרתי ימות המשיח דורשים
+        # שליחה ישירה במבנה המקורי שימות המשיח מחייבת ומאשרת מיד
         upload_url = f"{YEMOT_API_URL}CustomCreate?token={token_dst}&path=ivr2:/{clean_dst}&ini={encoded_ini}"
         dst_response = requests.post(upload_url)
 
