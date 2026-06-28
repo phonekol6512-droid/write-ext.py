@@ -1,12 +1,9 @@
-import re
-import logging
 import requests
 from flask import Flask, request, make_response
 
 app = Flask(__name__)
-YEMOT_API_URL = "https://www.call2all.co.il/ym/api/"
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+YEMOT_API_URL = "https://www.call2all.co.il/ym/api/"
 
 
 def ym_response(content: str):
@@ -25,75 +22,81 @@ def ym_say_and_hangup(text: str):
 
 @app.route('/create-menu', methods=['GET', 'POST'])
 def create_menu():
-    # קבלת פרמטרים מהמשתמש (דרך ה-IVR)
     system = request.values.get('system')
     password = request.values.get('password')
     extension = request.values.get('extension')
-    num_digits = request.values.get('num_digits', '1')  # ברירת מחדל: ספרה אחת
+    change_default = request.values.get('change_default')
+    num_digits = request.values.get('num_digits')
+    change_voice = request.values.get('change_voice')
+    voice_choice = request.values.get('voice_choice')
+    hash_setting = request.values.get('hash_setting')   # חדש
 
-    # שלב 1: מספר מערכת
+    # שלב 1-3
     if not system:
         return ym_read("system", "t-אנא הקישו את מספר המערכת ובסיומה סולמית", 10)
-
-    # שלב 2: סיסמה
     if not password:
         return ym_read("password", "t-אנא הקישו את סיסמת המערכת ובסיומה סולמית", 10)
-
-    # שלב 3: מספר השלוחה החדשה
     if not extension:
         return ym_read("extension", "t-אנא הקישו את מספר השלוחה החדשה ובסיומה סולמית", 10)
 
-    # שלב 4 (אופציונלי): כמה ספרות יקלידו?
-    # אם num_digits לא הוזן, נשאל את המשתמש.
-    if not num_digits:
-        return ym_read("num_digits", "t-כמה ספרות יקליד המתקשר? (1-9)", 1)
+    # שלב 4 - הקשות
+    if not change_default:
+        return ym_read("change_default", "t-האם לשנות ברירת מחדל של הקשות? 1-כן 0-לא", 1)
+    if change_default == "1" and not num_digits:
+        return ym_read("num_digits", "t-כמה ספרות? 1-9", 1)
 
-    # ===================== יצירת השלוחה =====================
+    # שלב 5 - קול
+    if not change_voice:
+        return ym_read("change_voice", "t-לבחור קול רובוטי? 1-כן 0-לא", 1)
+    if change_voice == "1" and not voice_choice:
+        return ym_read("voice_choice", "t-בחר קול: 1-זכר 2-נקבה 3-מהיר", 1)
+
+    # שלב 6 - מקש סולמית (חדש)
+    if not hash_setting:
+        return ym_read("hash_setting", "t-האם להפעיל את מקש הסולמית # כשלוחה נפרדת? 1-כן 0-לא (חוזר לתפריט)", 1)
+
+    # ===================== סוף - יצירה =====================
     try:
-        # ניקוי קלט - רק ספרות
-        clean_ext = re.sub(r'\D', '', extension)
-        if not clean_ext:
-            return ym_say_and_hangup("t-שגיאה: השלוחה חייבת להכיל ספרות בלבד.")
-
         token = f"{system.strip()}:{password.strip()}"
-        digits = int(num_digits) if num_digits.isdigit() else 1
+        clean_ext = extension.strip().replace("*", "/").replace("-", "/").strip("/")
 
-        # --- הרכבת הבקשה ל-UpdateExtension ---
-        # הפרמטרים: token, path, type, max_digits
-        # type=menu מגדיר אותה כתפריט
-        # max_digits קובע כמה ספרות המתקשר יכול להקליד
-        params = {
-            "token": token,
-            "path": f"ivr2:{clean_ext}",
-            "type": "menu",
-            "max_digits": digits
-        }
+        digits = int(num_digits) if num_digits and num_digits.isdigit() else 1
+        voices = {"1": "he-male", "2": "he-female", "3": "he-il-2"}
+        selected_voice = voices.get(voice_choice, "he-il-1") if change_voice == "1" else "he-il-1"
 
-        logging.info(f"יוצר שלוחה {clean_ext} עם {digits} ספרות")
+        hash_line = "hash_extension=yes" if hash_setting == "1" else ""
 
-        r = requests.get(
-            f"{YEMOT_API_URL}UpdateExtension",
-            params=params,
+        ext_ini = f"""type=menu
+title=תפריט אוטומטי
+invalid=הקשת שגויה, נסה שוב
+timeout=הזמן נגמר, להתראות
+max_digits={digits}
+{hash_line}
+menu_voice={selected_voice}
+"""
+
+        r = requests.post(
+            f"{YEMOT_API_URL}UploadTextFile",
+            params={
+                "token": token,
+                "what": f"ivr2:/{clean_ext}/ext.ini",
+                "contents": ext_ini
+            },
             timeout=15
         )
 
-        logging.info(f"Status: {r.status_code}, Response: {r.text}")
+        print("Upload Status:", r.status_code)
+        print("Response:", r.text)
 
-        # בדיקה אם הבקשה הצליחה
         if r.status_code == 200 and '"responseStatus":"OK"' in r.text:
-            return ym_say_and_hangup(
-                f"t-השלוחה {clean_ext} נוצרה בהצלחה! מספר ספרות: {digits}"
-            )
+            hash_status = "מופעל כשלוחה נפרדת" if hash_setting == "1" else "חוזר לתפריט"
+            return ym_say_and_hangup(f"t-השלוחה {clean_ext} נוצרה! הקשות {digits} קול {selected_voice} סולמית: {hash_status}")
         else:
-            logging.error(f"שגיאת API: {r.text}")
-            return ym_say_and_hangup("t-שגיאה ביצירת השלוחה. בדקו את נתוני המערכת.")
+            return ym_say_and_hangup("t-שגיאה בהעלאה.")
 
-    except requests.exceptions.Timeout:
-        logging.error("Timeout")
-        return ym_say_and_hangup("t-שגיאת תקשורת. נסו שוב.")
     except Exception as e:
-        logging.exception("שגיאה כללית")
-        return ym_say_and_hangup("t-שגיאה טכנית. נסו שוב.")
+        print("Error:", str(e))
+        return ym_say_and_hangup("t-שגיאה טכנית. נסה שוב.")
 
 
 if __name__ == '__main__':
