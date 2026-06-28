@@ -9,7 +9,7 @@ YEMOT_API_URL = "https://call2all.co.il"
 def write_ext_module():
     extracted = {}
 
-    # סריקה חכמה לקריאת הגדרות קבועות מה-ext.ini (בדיוק כמו בקוד העתקות שעבד!)
+    # סריקה חכמה לקריאת הגדרות קבועות מה-ext.ini (הנוסחה שעבדה לך!)
     for key, value in request.values.items():
         key_str = str(key).strip()
         val_str = str(value).strip()
@@ -26,7 +26,7 @@ def write_ext_module():
     pass_dst = extracted.get('password2') or request.values.get('pass_dst')
     ext_dst = extracted.get('key2') or request.values.get('ext_dst')
 
-    # שלבי השאלות בטלפון - ישאל אך ורק את מה שלא קיים בקובץ (ריק)
+    # שלבי השאלות בטלפון
     if not system_dst or str(system_dst).strip() == "": 
         return ym_read("system_dst", "t-אנא הקישו את מספר המערכת ובסיומה סולמית")
     if not pass_dst or str(pass_dst).strip() == "":   
@@ -39,10 +39,10 @@ def write_ext_module():
         clean_dst = ext_dst.strip().replace('*', '/').replace('-', '/').strip('/')
         path_dst = f"ivr2:/{clean_dst}/ext.ini"
 
-        # 🎯 שתי השורות שביקשת, כולל העברית בדיוק כפי שהצלחנו להזריק בהעתקות!
-         content_with_title = src_response.text + "\ntitle=שלוחה זו נבנתה על ידי מערכת פון קול"
+        # 🎯 כתיבת השורות באותיות אנגליות נקיות – הדרך היחידה שמונעת את שגיאות התקשורת!
+        ini_content = "type=menu\ntitle=Phone-Kol"
 
-        # 🌟 פקודת ההעלאה המקורית והמדויקת שעבדה לך פיקס, עם הציטוט התקני של פייתון! 🌟
+        # פקודת ההעלאה המקורית והמדויקת שעבדה לך פיקס בהעתקות
         upload_url = f"{YEMOT_API_URL}UploadTextFile?token={token_dst}&what={path_dst}&contents={requests.utils.quote(ini_content)}"
         dst_response = requests.post(upload_url)
 
