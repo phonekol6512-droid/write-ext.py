@@ -19,13 +19,13 @@ def ym_read(var_name: str, prompt: str, max_digits=1):
     return ym_response(f"read={prompt}={var_name},{max_digits},12,1,Digits")
 
 
-def ym_say_and_hangup(text: str):
-    return ym_response(f"id_list_message={text}\nend=true")
+def ym_say_and_transfer(text: str, target: str):
+    """משמיע הודעה ומעביר לתפריט ראשי."""
+    return ym_response(f"id_list_message={text}\ntransfer={target}")
 
 
 @app.route('/create-menu', methods=['GET', 'POST'])
 def create_menu():
-    # פרמטרים
     system = request.values.get('system')
     password = request.values.get('password')
     extension = request.values.get('extension')
@@ -35,7 +35,6 @@ def create_menu():
     voice_choice = request.values.get('voice_choice')
     hash_setting = request.values.get('hash_setting')
 
-    # שלב 1-3
     if not system:
         return ym_read("system", "t-אנא הקישו את מספר המערכת ובסיומה סולמית", 10)
     if not password:
@@ -43,33 +42,27 @@ def create_menu():
     if not extension:
         return ym_read("extension", "t-אנא הקישו את מספר השלוחה החדשה ובסיומה סולמית", 10)
 
-    # שלב 4 - הקשות
     if not change_default:
         return ym_read("change_default", "t-האם לשנות ברירת מחדל של הקשות? 1-כן 0-לא", 1)
     if change_default == "1" and not num_digits:
         return ym_read("num_digits", "t-כמה ספרות? 1-9", 1)
 
-    # שלב 5 - קול
     if not change_voice:
         return ym_read("change_voice", "t-לבחור קול רובוטי? 1-כן 0-לא", 1)
     if change_voice == "1" and not voice_choice:
         return ym_read("voice_choice", "t-בחר קול: 1-אליק 2-יעקב 3-סיוון 4-אסנת", 1)
 
-    # שלב 6 - סולמית
     if not hash_setting:
         return ym_read("hash_setting", "t-האם להפעיל את מקש הסולמית # כשלוחה נפרדת? 1-כן 0-לא", 1)
 
-    # ===================== יצירה =====================
     try:
-        # ----- ניקוי השלוחה (תומך בכוכבית ומקף) -----
         clean_ext = extension.strip().replace('*', '/').replace('-', '/').strip('/')
         if not clean_ext:
-            return ym_say_and_goto("t-שגיאה: השלוחה ריקה.")
+            return ym_say_and_transfer("t-שגיאה: השלוחה ריקה", "100")
 
         token = f"{system.strip()}:{password.strip()}"
         digits = int(num_digits) if (num_digits and num_digits.isdigit()) else 1
 
-        # מיפוי קולות
         voice_map = {
             "1": "Elik_2100",
             "2": "Jacob",
@@ -90,7 +83,6 @@ menu_voice={selected_voice}
 default=action:transfer $EXT
 """
 
-        # ---------- שלב 1: יצירת השלוחה (UpdateExtension) ----------
         r1 = requests.get(
             f"{YEMOT_API_URL}UpdateExtension",
             params={
@@ -104,10 +96,8 @@ default=action:transfer $EXT
         logging.info(f"UpdateExtension: {r1.status_code} - {r1.text}")
 
         if not (r1.status_code == 200 and '"responseStatus":"OK"' in r1.text):
-            # הודעה קצרה במקרה של כישלון
-            return ym_say_and_goto("t-שגיאה ביצירת השלוחה")
+            return ym_say_and_transfer("t-שגיאה ביצירת השלוחה", "100")
 
-        # ---------- שלב 2: העלאת קובץ התפריט (UploadTextFile) ----------
         r2 = requests.post(
             f"{YEMOT_API_URL}UploadTextFile",
             params={
@@ -119,19 +109,16 @@ default=action:transfer $EXT
         )
         logging.info(f"UploadTextFile: {r2.status_code} - {r2.text}")
 
-        # ---------- שלב 3: הודעת סיכום (קצרה!) ----------
         if r2.status_code == 200 and '"responseStatus":"OK"' in r2.text:
-            # בניית הודעה קצרה - ללא יותר מדי פרטים
-            hash_status = "פעיל" if hash_setting == "1" else "לא פעיל"
             msg = f"t-השלוחה {clean_ext} נוצרה. ספרות: {digits}. קול: {selected_voice}"
-            return ym_say_and_goto(msg)
+            # משמיע הודעה ומעביר לתפריט ראשי 100
+            return ym_say_and_transfer(msg, "100")
         else:
-            # השלוחה נוצרה אבל התפריט לא נטען
-            return ym_say_and_goto("t-השלוחה נוצרה אך התפריט לא נטען")
+            return ym_say_and_transfer("t-השלוחה נוצרה אך התפריט לא נטען", "100")
 
     except Exception as e:
         logging.exception("שגיאה")
-        return ym_say_and_goto("t-שגיאה טכנית. נסה שוב.")
+        return ym_say_and_transfer("t-שגיאה טכנית. נסה שוב", "100")
 
 
 if __name__ == '__main__':
