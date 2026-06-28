@@ -61,9 +61,12 @@ def create_menu():
 
     # ===================== יצירה =====================
     try:
-        clean_ext = re.sub(r'\D', '', extension)
-        if not clean_ext:
-            return ym_say_and_hangup("t-שגיאה: השלוחה חייבת להכיל ספרות בלבד.")
+        # ---------- טיפול בנתיב: המרת * לסלאש ----------
+        # המשתמש יכול להקליד 4*5*2 וזה יהפוך ל-4/5/2
+        clean_ext = extension.strip().replace('*', '/').replace('-', '/').strip('/')
+        # לוודא שיש רק ספרות וסלאשים (לא נשארו תווים לא חוקיים)
+        if not re.match(r'^[\d/]+$', clean_ext):
+            return ym_say_and_hangup("t-שגיאה: השלוחה חייבת להכיל ספרות, כוכבית או מקף בלבד.")
 
         token = f"{system.strip()}:{password.strip()}"
         digits = int(num_digits) if (num_digits and num_digits.isdigit()) else 1
@@ -90,6 +93,7 @@ default=action:transfer $EXT
 """
 
         # ---------- שלב 1: יצירת השלוחה (עובד גם לחדשה) ----------
+        # שים לב: clean_ext מכיל עכשיו סלאשים, כמו "4/5" או "4/5/2"
         r1 = requests.get(
             f"{YEMOT_API_URL}UpdateExtension",
             params={
@@ -106,6 +110,7 @@ default=action:transfer $EXT
             return ym_say_and_hangup("t-שגיאה ביצירת השלוחה. בדקו את הפרטים.")
 
         # ---------- שלב 2: העלאת קובץ התפריט ----------
+        # גם כאן, הנתיב כולל סלאשים כדי לייצג היררכיה
         r2 = requests.post(
             f"{YEMOT_API_URL}UploadTextFile",
             params={
