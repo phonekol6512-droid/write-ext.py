@@ -20,12 +20,13 @@ def ym_read(var_name: str, prompt: str, max_digits=1):
 
 
 def ym_say_and_hangup(text: str):
-    return ym_response(f"id_list_message={text}\nend=true")
+    """משמיע הודעה באמצעות TTS ומנתק."""
+    return ym_response(f"say=he-IL,{text}\nend=true")
 
 
-def ym_say(text: str):
-    """משמיע הודעה בלי לנתק."""
-    return ym_response(f"say={text}")
+def ym_say_and_return(text: str):
+    """משמיע הודעה באמצעות TTS וחוזר לתפריט הקודם (ללא ניתוק)."""
+    return ym_response(f"say=he-IL,{text}")
 
 
 @app.route('/create-menu', methods=['GET', 'POST'])
@@ -60,9 +61,10 @@ def create_menu():
         return ym_read("hash_setting", "t-האם להפעיל את מקש הסולמית # כשלוחה נפרדת? 1-כן 0-לא", 1)
 
     try:
+        # ניקוי השלוחה (תומך בכוכבית ומקף)
         clean_ext = extension.strip().replace('*', '/').replace('-', '/').strip('/')
         if not clean_ext:
-            return ym_say_and_hangup("t-שגיאה: השלוחה ריקה.")
+            return ym_say_and_hangup("שגיאה: השלוחה ריקה")
 
         token = f"{system.strip()}:{password.strip()}"
         digits = int(num_digits) if (num_digits and num_digits.isdigit()) else 1
@@ -87,6 +89,7 @@ menu_voice={selected_voice}
 default=action:transfer $EXT
 """
 
+        # ---------- שלב 1: יצירת השלוחה ----------
         r1 = requests.get(
             f"{YEMOT_API_URL}UpdateExtension",
             params={
@@ -100,8 +103,9 @@ default=action:transfer $EXT
         logging.info(f"UpdateExtension: {r1.status_code} - {r1.text}")
 
         if not (r1.status_code == 200 and '"responseStatus":"OK"' in r1.text):
-            return ym_say_and_hangup("t-שגיאה ביצירת השלוחה")
+            return ym_say_and_hangup("שגיאה ביצירת השלוחה")
 
+        # ---------- שלב 2: העלאת קובץ התפריט ----------
         r2 = requests.post(
             f"{YEMOT_API_URL}UploadTextFile",
             params={
@@ -113,15 +117,16 @@ default=action:transfer $EXT
         )
         logging.info(f"UploadTextFile: {r2.status_code} - {r2.text}")
 
+        # ---------- שלב 3: הודעת סיכום ----------
         if r2.status_code == 200 and '"responseStatus":"OK"' in r2.text:
-            msg = f"t-השלוחה {clean_ext} נוצרה. ספרות: {digits}. קול: {selected_voice}"
-            return ym_say(msg)   # משמיע הודעה, לא מנתק – אמור לחזור אוטומטית
+            msg = f"השלוחה {clean_ext} נוצרה. ספרות: {digits}. קול: {selected_voice}"
+            return ym_say_and_return(msg)  # משמיע וחוזר לתפריט הקודם
         else:
-            return ym_say_and_hangup("t-השלוחה נוצרה אך התפריט לא נטען")
+            return ym_say_and_hangup("השלוחה נוצרה אך התפריט לא נטען")
 
     except Exception as e:
         logging.exception("שגיאה")
-        return ym_say_and_hangup("t-שגיאה טכנית. נסה שוב.")
+        return ym_say_and_hangup("שגיאה טכנית. נסה שוב")
 
 
 if __name__ == '__main__':
