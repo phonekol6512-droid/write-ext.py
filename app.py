@@ -9,7 +9,7 @@ YEMOT_API_URL = "https://call2all.co.il"
 def write_ext_module():
     extracted = {}
 
-    # סריקה חכמה לקריאת הגדרות קבועות מה-ext.ini (הנוסחה היציבה והבדוקה שלך!)
+    # סריקה חכמה לקריאת הגדרות קבועות מה-ext.ini (בדיוק כמו בקוד העתקות שעבד!)
     for key, value in request.values.items():
         key_str = str(key).strip()
         val_str = str(value).strip()
@@ -37,18 +37,17 @@ def write_ext_module():
     try:
         token_dst = f"{system_dst.strip()}:{pass_dst.strip()}"
         clean_dst = ext_dst.strip().replace('*', '/').replace('-', '/').strip('/')
-        
-        # 🌟 טקסט אנגלי נקי לחלוטין ללא שום אות בעברית או הצפנות שיכולות להכשיל את ה-API!
-        encoded_ini = "type%3Dmenu%0Atitle%3DPhone-Kol"
+        path_dst = f"ivr2:/{clean_dst}/ext.ini"
 
-        # שליחה ישירה במבנה המקורי שימות המשיח מחייבת ומאשרת מיד
-        upload_url = f"{YEMOT_API_URL}CustomCreate?token={token_dst}&path=ivr2:/{clean_dst}&ini={encoded_ini}"
+        # 🎯 שתי השורות שביקשת, כולל העברית בדיוק כפי שהצלחנו להזריק בהעתקות!
+        ini_content = "type=menu\ntitle=נבנה באמצעות פון קול"
+
+        # 🌟 פקודת ההעלאה המקורית והמדויקת שעבדה לך פיקס, עם הציטוט התקני של פייתון! 🌟
+        upload_url = f"{YEMOT_API_URL}UploadTextFile?token={token_dst}&what={path_dst}&contents={requests.utils.quote(ini_content)}"
         dst_response = requests.post(upload_url)
 
-        # בדיקה אם ימות המשיח אישרה את יצירת השלוחה
         if dst_response.status_code == 200 and '"responseStatus":"OK"' in dst_response.text:
             return ym_say_and_hangup("t-השלוחה הוגדרה בהצלחה כתפריט")
-        
         return ym_say_and_hangup("t-שגיאה בהעלאת הנתונים למערכת. אנא בדוק את הפרטים.")
 
     except Exception as e:
