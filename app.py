@@ -1,4 +1,3 @@
-# app.py
 import requests
 from flask import Flask, request, make_response
 
