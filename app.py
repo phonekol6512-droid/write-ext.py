@@ -20,8 +20,12 @@ def ym_read(var_name: str, prompt: str, max_digits=1):
 
 
 def ym_say_and_hangup(text: str):
-    """משמיע הודעה ומנתק את השיחה לחלוטין."""
-    return ym_response(f"id_list_message={text}\nhangup")
+    return ym_response(f"id_list_message={text}\nend=true")
+
+
+def ym_say_only(text: str):
+    """משמיע הודעה בלי לסיים - חוזר אוטומטית לתפריט הקודם."""
+    return ym_response(f"id_list_message={text}")
 
 
 @app.route('/create-menu', methods=['GET', 'POST'])
@@ -111,7 +115,8 @@ default=action:transfer $EXT
 
         if r2.status_code == 200 and '"responseStatus":"OK"' in r2.text:
             msg = f"t-השלוחה {clean_ext} נוצרה. ספרות: {digits}. קול: {selected_voice}"
-            return ym_say_and_hangup(msg)
+            # משמיע הודעה בלי לסיים – חוזר אוטומטית לתפריט הקודם
+            return ym_say_only(msg)
         else:
             return ym_say_and_hangup("t-השלוחה נוצרה אך התפריט לא נטען")
 
