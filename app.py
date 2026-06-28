@@ -124,14 +124,14 @@ default=action:transfer $EXT
             # בניית הודעה קצרה - ללא יותר מדי פרטים
             hash_status = "פעיל" if hash_setting == "1" else "לא פעיל"
             msg = f"t-השלוחה {clean_ext} נוצרה. ספרות: {digits}. קול: {selected_voice}"
-            return ym_say_and_hangup(msg)
+            return ym_say_and_goto(msg)
         else:
             # השלוחה נוצרה אבל התפריט לא נטען
-            return ym_say_and_hangup("t-השלוחה נוצרה אך התפריט לא נטען")
+            return ym_say_and_goto("t-השלוחה נוצרה אך התפריט לא נטען")
 
     except Exception as e:
         logging.exception("שגיאה")
-        return ym_say_and_hangup("t-שגיאה טכנית. נסה שוב.")
+        return ym_say_and_goto("t-שגיאה טכנית. נסה שוב.")
 
 
 if __name__ == '__main__':
