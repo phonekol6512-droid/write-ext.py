@@ -42,7 +42,7 @@ def create_menu():
         return ym_read("extension", "t-אנא הקישו את מספר השלוחה החדשה ובסיומה סולמית", 10)
 
     if not change_default:
-        return ym_read("change_default", "t-האם לשנות את ברירת המחדל של ההקשות? 1-כן 0-לא", 1)
+        return ym_read("change_default", "t-האם לשנות את ברירת המחדל של ההקשות?  לשינוי הקש אחת להמשך ללא שינוי הקש 0 ", 1)
 
     if change_default == "1" and not num_digits:
         return ym_read("num_digits", "t-כמה ספרות יקלוט התפריט? 1 עד 9", 1)
