@@ -22,21 +22,21 @@ def ym_say_and_hangup(text: str):
 
 @app.route('/create-menu', methods=['GET', 'POST'])
 def create_menu():
-    print("=== בקשה חדשה ===")
-    print(request.values.to_dict())
+    data = request.values.to_dict()
+    print("נתונים שהתקבלו:", data)
 
-    system = request.values.get('system')
-    password = request.values.get('password')
-    extension = request.values.get('extension')
-    change_default = request.values.get('change_default')
-    num_digits = request.values.get('num_digits')
-    change_voice = request.values.get('change_voice')
-    voice_choice = request.values.get('voice_choice')
-    hash_setting = request.values.get('hash_setting')
+    system = data.get('system')
+    password = data.get('password')
+    extension = data.get('extension')
+    change_default = data.get('change_default')
+    num_digits = data.get('num_digits')
+    change_voice = data.get('change_voice')
+    voice_choice = data.get('voice_choice')
+    hash_setting = data.get('hash_setting')
 
-    # אם יש את כל הפרמטרים - יצירה
+    # אם יש את כל הנתונים החשובים - יצירה
     if system and password and extension and change_default and hash_setting:
-        print("כל הפרמטרים קיימים - מתחיל יצירה")
+        print("כל הנתונים קיימים - יוצר שלוחה")
         try:
             token = f"{system.strip()}:{password.strip()}"
             clean_ext = extension.strip().replace("*", "/").replace("-", "/").strip("/")
@@ -70,7 +70,7 @@ menu_voice={selected_voice}
                 "contents": ext_ini
             }, timeout=15)
 
-            print("Upload Status:", r.status_code)
+            print("Status:", r.status_code)
             print("Response:", r.text)
 
             if r.status_code == 200 and '"responseStatus":"OK"' in r.text:
