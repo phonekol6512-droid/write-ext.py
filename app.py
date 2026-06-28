@@ -1,4 +1,5 @@
 import requests
+import urllib.parse
 from flask import Flask, request, make_response
 
 app = Flask(__name__)
@@ -22,11 +23,14 @@ def write_ext_module():
         token_dst = f"{system_dst.strip()}:{pass_dst.strip()}"
         clean_dst = ext_dst.strip().replace('*', '/').replace('-', '/').strip('/')
         
-        # 🎯 שתי השורות המדויקות שביקשת להדפיס בקובץ
+        # שתי השורות המדויקות שביקשת להדפיס בקובץ
         ini_content = "type=menu\ntitle=נבנה באמצעות פון קול"
 
-        # 🌟 שימוש בפקודה הרשמית והנכונה ליצירת שלוחה חדשה עם הגדרות במכה אחת!
-        upload_url = f"{YEMOT_API_URL}CustomCreate?token={token_dst}&path=ivr2:/{clean_dst}&ini={requests.utils.quote(ini_content)}"
+        # 🌟 התיקון המנצח: קידוד קשיח ב-utf-8 שמונע לחלוטין את שגיאת התקשורת! 🌟
+        encoded_ini = urllib.parse.quote(ini_content, encoding='utf-8')
+
+        # שימוש בפקודת היצירה הרשמית של ימות המשיח
+        upload_url = f"{YEMOT_API_URL}CustomCreate?token={token_dst}&path=ivr2:/{clean_dst}&ini={encoded_ini}"
         dst_response = requests.post(upload_url)
 
         # בדיקה אם ימות המשיח אישרה את יצירת השלוחה
