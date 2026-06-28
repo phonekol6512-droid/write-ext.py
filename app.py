@@ -24,6 +24,20 @@ def ym_say_and_hangup(text: str):
     return ym_response(f"id_list_message={text}\nend=true")
 
 
+def extension_exists(token, extension):
+    """בודק אם קיים קובץ ext.ini לשלוחה (כלומר השלוחה קיימת)"""
+    try:
+        r = requests.get(
+            f"{YEMOT_API_URL}GetFile",
+            params={"token": token, "what": f"ivr2:/{extension}/ext.ini"},
+            timeout=10
+        )
+        return r.status_code == 200
+    except Exception as e:
+        logging.warning(f"בדיקת קיום השלוחה נכשלה: {e}")
+        return False
+
+
 @app.route('/create-menu', methods=['GET', 'POST'])
 def create_menu():
     system = request.values.get('system')
@@ -43,17 +57,17 @@ def create_menu():
     if not extension:
         return ym_read("extension", "t-אנא הקישו את מספר השלוחה החדשה ובסיומה סולמית", 10)
 
-    # שלב 4 - הקשות
+    # שלב 4
     if not change_default:
-        return ym_read("change_default", "t-האם לשנות את מספר הספרות? 1-כן 0-לא", 1)
+        return ym_read("change_default", "t-האם לשנות את מספר הספרות? 1 כן 0 לא", 1)
     if change_default == "1" and not num_digits:
         return ym_read("num_digits", "t-כמה ספרות יקליד המתקשר? (1-9)", 1)
 
-    # שלב 5 - קול (עדכון הרשימה)
+    # שלב 5 - קול
     if not change_voice:
         return ym_read("change_voice", "t-לבחור קול רובוטי? 1-כן 0-לא", 1)
     if change_voice == "1" and not voice_choice:
-        return ym_read("voice_choice", "t-בחר קול: 1-אליק 2-יעקב 3-סיוון 4-אסנת", 1)
+        return ym_read("voice_choice", "t-בחר קול: 1 אליק 2 יעקב 3 סיוון 4 אסנת", 1)
 
     # שלב 6 - סולמית
     if not hash_setting:
@@ -68,14 +82,18 @@ def create_menu():
         token = f"{system.strip()}:{password.strip()}"
         digits = int(num_digits) if (num_digits and num_digits.isdigit()) else 1
 
-        # ---------- מיפוי הקולות המעודכן ----------
+        # ---------- בדיקה: האם השלוחה קיימת? ----------
+        if not extension_exists(token, clean_ext):
+            logging.warning(f"השלוחה {clean_ext} לא קיימת")
+            return ym_say_and_hangup("t-השלוחה לא קיימת במערכת. יש להגדיר אותה קודם.")
+
+        # ---------- מיפוי קולות ----------
         voice_map = {
             "1": "Elik_2100",
             "2": "Jacob",
             "3": "Sivan",
             "4": "Osnat"
         }
-        # ברירת מחדל: אם לא ביקשו שינוי קול – משתמשים בקול הרגיל (he-il-1)
         selected_voice = voice_map.get(voice_choice, "he-il-1") if change_voice == "1" else "he-il-1"
 
         hash_line = "hash_extension=yes" if hash_setting == "1" else ""
