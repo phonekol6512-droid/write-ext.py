@@ -80,7 +80,7 @@ timeout=הזמן נגמר, להתראות
 max_digits={digits}
 {hash_line}
 menu_voice={selected_voice}
-default=goto:$EXT
+default=go_to:/
 """
 
         r1 = requests.get(
