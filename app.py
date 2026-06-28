@@ -20,7 +20,8 @@ def ym_read(var_name: str, prompt: str, max_digits=1):
 
 
 def ym_say_and_hangup(text: str):
-    return ym_response(f"id_list_message={text}\nend=true")
+    # שולח hangup במקום end=true
+    return ym_response(f"id_list_message={text}\nhangup")
 
 
 @app.route('/create-menu', methods=['GET', 'POST'])
@@ -72,7 +73,6 @@ def create_menu():
 
         hash_line = "hash_extension=yes" if hash_setting == "1" else ""
 
-        # ---------- תיקון קריטי: מחליף את transfer ב-go_to ----------
         ext_ini = f"""type=menu
 title=תפריט אוטומטי
 invalid=הקשת שגויה, נסה שוב
