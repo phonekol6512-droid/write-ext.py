@@ -20,12 +20,8 @@ def ym_read(var_name: str, prompt: str, max_digits=1):
 
 
 def ym_say_and_hangup(text: str):
+    """משמיע הודעה ומנתק – השיטה היציבה ביותר."""
     return ym_response(f"id_list_message={text}\nend=true")
-
-
-def ym_say_and_transfer(text: str, target_ext: str):
-    """משמיע הודעה ומעביר לתפריט הראשי (בלי לנתק)."""
-    return ym_response(f"id_list_message={text}\ntransfer={target_ext}")
 
 
 @app.route('/create-menu', methods=['GET', 'POST'])
@@ -33,7 +29,6 @@ def create_menu():
     system = request.values.get('system')
     password = request.values.get('password')
     extension = request.values.get('extension')
-    main_menu = request.values.get('main_menu')  # חדש: תפריט ראשי
     change_default = request.values.get('change_default')
     num_digits = request.values.get('num_digits')
     change_voice = request.values.get('change_voice')
@@ -47,12 +42,6 @@ def create_menu():
         return ym_read("password", "t-אנא הקישו את סיסמת המערכת ובסיומה סולמית", 10)
     if not extension:
         return ym_read("extension", "t-אנא הקישו את מספר השלוחה החדשה ובסיומה סולמית", 10)
-
-    # שלב חדש: תפריט ראשי
-    if not main_menu:
-        return ym_read("main_menu", "t-אנא הקישו את מספר התפריט הראשי (או 0 לביטול)", 10)
-    if main_menu == "0":
-        return ym_say_and_hangup("t-ביטול")
 
     # שלב 4 - הקשות
     if not change_default:
@@ -72,16 +61,15 @@ def create_menu():
 
     # ===================== יצירה =====================
     try:
+        # ניקוי השלוחה (תומך בכוכבית ומקף)
         clean_ext = extension.strip().replace('*', '/').replace('-', '/').strip('/')
         if not clean_ext:
-            return ym_say_and_hangup("t-שגיאה: השלוחה ריקה.")
+            return ym_say_and_hangup("t-שגיאה: השלוחה ריקה")
 
         token = f"{system.strip()}:{password.strip()}"
         digits = int(num_digits) if (num_digits and num_digits.isdigit()) else 1
-        clean_main = re.sub(r'\D', '', main_menu)
-        if not clean_main:
-            clean_main = "100"  # ברירת מחדל
 
+        # מיפוי קולות
         voice_map = {
             "1": "Elik_2100",
             "2": "Jacob",
@@ -103,6 +91,7 @@ default=action:transfer $EXT
 """
 
         # ---------- שלב 1: יצירת השלוחה ----------
+        logging.info(f"מנסה ליצור שלוחה {clean_ext} עם {digits} ספרות")
         r1 = requests.get(
             f"{YEMOT_API_URL}UpdateExtension",
             params={
@@ -113,12 +102,13 @@ default=action:transfer $EXT
             },
             timeout=15
         )
-        logging.info(f"UpdateExtension: {r1.status_code} - {r1.text}")
+        logging.info(f"UpdateExtension: {r1.status_code} - {r1.text[:200]}")
 
         if not (r1.status_code == 200 and '"responseStatus":"OK"' in r1.text):
             return ym_say_and_hangup("t-שגיאה ביצירת השלוחה")
 
         # ---------- שלב 2: העלאת קובץ התפריט ----------
+        logging.info(f"מעלה קובץ תפריט לשלוחה {clean_ext}")
         r2 = requests.post(
             f"{YEMOT_API_URL}UploadTextFile",
             params={
@@ -128,18 +118,20 @@ default=action:transfer $EXT
             },
             timeout=15
         )
-        logging.info(f"UploadTextFile: {r2.status_code} - {r2.text}")
+        logging.info(f"UploadTextFile: {r2.status_code} - {r2.text[:200]}")
 
-        # ---------- שלב 3: הודעה + חזרה לתפריט הראשי ----------
+        # ---------- שלב 3: הודעת סיכום (מובטחת!) ----------
         if r2.status_code == 200 and '"responseStatus":"OK"' in r2.text:
-            msg = f"t-השלוחה {clean_ext} נוצרה. ספרות: {digits}. קול: {selected_voice}"
-            return ym_say_and_transfer(msg, clean_main)
+            msg = f"t-השלוחה {clean_ext} נוצרה בהצלחה. ספרות: {digits}. קול: {selected_voice}"
+            logging.info(f"משמיע הודעה: {msg}")
+            return ym_say_and_hangup(msg)
         else:
+            logging.error(f"העלאת קובץ נכשלה: {r2.text}")
             return ym_say_and_hangup("t-השלוחה נוצרה אך התפריט לא נטען")
 
     except Exception as e:
-        logging.exception("שגיאה")
-        return ym_say_and_hangup("t-שגיאה טכנית. נסה שוב.")
+        logging.exception("שגיאה כללית")
+        return ym_say_and_hangup("t-שגיאה טכנית. נסה שוב")
 
 
 if __name__ == '__main__':
