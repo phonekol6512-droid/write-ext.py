@@ -64,7 +64,7 @@ def create_menu():
         # ----- ניקוי השלוחה (תומך בכוכבית ומקף) -----
         clean_ext = extension.strip().replace('*', '/').replace('-', '/').strip('/')
         if not clean_ext:
-            return ym_say_and_hangup("t-שגיאה: השלוחה ריקה.")
+            return ym_say_and_goto("t-שגיאה: השלוחה ריקה.")
 
         token = f"{system.strip()}:{password.strip()}"
         digits = int(num_digits) if (num_digits and num_digits.isdigit()) else 1
@@ -105,7 +105,7 @@ default=action:transfer $EXT
 
         if not (r1.status_code == 200 and '"responseStatus":"OK"' in r1.text):
             # הודעה קצרה במקרה של כישלון
-            return ym_say_and_hangup("t-שגיאה ביצירת השלוחה")
+            return ym_say_and_goto("t-שגיאה ביצירת השלוחה")
 
         # ---------- שלב 2: העלאת קובץ התפריט (UploadTextFile) ----------
         r2 = requests.post(
