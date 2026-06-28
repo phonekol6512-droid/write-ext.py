@@ -23,9 +23,9 @@ def ym_say_and_hangup(text: str):
     return ym_response(f"id_list_message={text}\nend=true")
 
 
-def ym_say_and_wait(text: str):
-    """משמיע הודעה ומחכה להקשה (בלי לנתק)."""
-    return ym_response(f"id_list_message={text}\nread=0")
+def ym_say_and_return(text: str):
+    """משמיע הודעה, ואז מחכה להקשה (למשל 0) כדי לחזור."""
+    return ym_response(f"id_list_message={text}\nread=להמשך הקש 0=dummy,1,12,1,Digits")
 
 
 @app.route('/create-menu', methods=['GET', 'POST'])
@@ -126,8 +126,8 @@ default=action:transfer $EXT
         # ---------- שלב 3: הודעת סיכום (בלי ניתוק!) ----------
         if r2.status_code == 200 and '"responseStatus":"OK"' in r2.text:
             msg = f"t-השלוחה {clean_ext} נוצרה. ספרות: {digits}. קול: {selected_voice}"
-            # משמיע הודעה ומחכה להקשה (לא מנתק)
-            return ym_say_and_wait(msg)
+            # משמיע הודעה ואז מחכה להקשה (לא מנתק)
+            return ym_say_and_return(msg)
         else:
             return ym_say_and_hangup("t-השלוחה נוצרה אך התפריט לא נטען")
 
