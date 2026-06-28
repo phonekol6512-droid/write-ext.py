@@ -46,8 +46,7 @@ title=נבנה באמצעות מערכת פון קול"""
         print(response.text)
 
         if response.status_code == 200 and '"responseStatus":"OK"' in response.text:
-            return ym_say_and_hangup("t-השלוחה הוגדרה בהצלחה")
-
+            return "id_list_message=t-השלוחה הוגדרה בהצלחה"
         return ym_say_and_hangup("t-אירעה שגיאה ביצירת השלוחה")
 
     except Exception as e:
