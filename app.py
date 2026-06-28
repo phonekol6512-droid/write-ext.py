@@ -27,38 +27,31 @@ def create_menu():
     system = request.values.get('system')
     password = request.values.get('password')
     extension = request.values.get('extension')
-    change_default = request.values.get('change_default')   # 1 = כן לשנות, 0 = לא
-    num_digits = request.values.get('num_digits')           # כמות ההקשות אם בחר לשנות
+    change_default = request.values.get('change_default')
+    num_digits = request.values.get('num_digits')
 
-    # 1. מספר מערכת
     if not system:
         return ym_read("system", "t-אנא הקישו את מספר המערכת ובסיומה סולמית", 10)
 
-    # 2. סיסמה
     if not password:
         return ym_read("password", "t-אנא הקישו את סיסמת המערכת ובסיומה סולמית", 10)
 
-    # 3. מספר שלוחה
     if not extension:
         return ym_read("extension", "t-אנא הקישו את מספר השלוחה החדשה ובסיומה סולמית", 10)
 
-    # 4. שאלת שינוי ברירת מחדל
     if not change_default:
         prompt = "t-האם אתה רוצה לשנות את ברירת המחדל של ההקשות? הקש 1 לשינוי, 0 להמשיך ללא שינוי"
         return ym_read("change_default", prompt, 1)
 
-    # 5. אם בחר לשנות - שואל כמה ספרות
     if change_default == "1" and not num_digits:
-        return ym_read("num_digits", "t-כמה הקשות (ספרות) ברצונך שיהיו בתפריט? (1-9)", 1)
+        return ym_read("num_digits", "t-כמה הקשות ברצונך שיהיו בתפריט? (1-9)", )
 
     try:
         token = f"{system.strip()}:{password.strip()}"
         clean_ext = extension.strip().replace("*", "/").replace("-", "/").strip("/")
 
-        # קביעת כמות הספרות
         digits = int(num_digits) if num_digits and num_digits.isdigit() else 1
 
-        # בניית ext.ini
         ext_ini = f"""type=menu
 title=תפריט שנבנה אוטומטית
 invalid=הקשת שגויה, נסה שוב
@@ -72,7 +65,6 @@ hash_extension=yes
 #=go_to:main
 """
 
-        # העלאה לימות
         upload_url = f"{YEMOT_API_URL}UploadTextFile"
         params = {
             "token": token,
@@ -81,12 +73,14 @@ hash_extension=yes
         }
 
         response = requests.post(upload_url, params=params, timeout=15)
-        
-        print("Status:", response.status_code)
-        print("Response:", response.text)
 
         if response.status_code == 200 and '"responseStatus":"OK"' in response.text:
-            return ym_say_and_hangup(f"t-השלוחה {clean_ext} נוצרה בהצלחה!פרטי התפריט ברירת מחדל: {digits} ספרות.")
+            summary = f"""t-הכל מוכן!
+נוצרה שלוחה: {clean_ext}
+ברירת מחדל: {digits} הקשות
+התפריט כולל אופציות 1,2,3 ו-#
+בהצלחה!"""
+            return ym_say_and_hangup(summary)
         else:
             return ym_say_and_hangup("t-שגיאה בהעלאת השלוחה.")
 
