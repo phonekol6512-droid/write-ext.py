@@ -1,25 +1,3 @@
-import requests
-from flask import Flask, request, make_response
-
-app = Flask(__name__)
-
-YEMOT_API_URL = "https://www.call2all.co.il/ym/api/"
-
-
-def ym_response(content: str):
-    res = make_response(content)
-    res.headers["Content-Type"] = "text/plain; charset=utf-8"
-    return res
-
-
-def ym_read(var_name: str, prompt: str, max_digits=1):
-    return ym_response(f"read={prompt}={var_name},{max_digits},12,1,Digits")
-
-
-def ym_say_and_hangup(text: str):
-    return ym_response(f"id_list_message={text}\nend=true")
-
-
 @app.route('/create-menu', methods=['GET', 'POST'])
 def create_menu():
     system = request.values.get('system')
@@ -49,7 +27,7 @@ def create_menu():
     if not change_voice:
         return ym_read("change_voice", "t-לבחור קול רובוטי? 1-כן 0-לא", 1)
     if change_voice == "1" and not voice_choice:
-        return ym_read("voice_choice", "t-בחר קול: 1-זכר 2-נקבה 3-מהיר", 1)
+        return ym_read("voice_choice", "t-בחר קול: 1-זכר (חדש) 2-נקבה (חדש) 3-מהיר (ישן)", 1)
 
     # שלב 6 - מקש סולמית
     if not hash_setting:
@@ -61,14 +39,17 @@ def create_menu():
         clean_ext = extension.strip().replace("*", "/").replace("-", "/").strip("/")
 
         digits = int(num_digits) if num_digits and num_digits.isdigit() else 1
-        voices = {"1": "he-male", "2": "he-female", "3": "he-il-2"}
+        
+        # --- עדכון המילון לבחירת הקול ---
+        voices = {
+            "1": "ymMale",    # קול גברי חדש
+            "2": "ymFemale",  # קול נקבה חדש
+            "3": "he-il-2"    # קול מהיר ישן
+        }
         selected_voice = voices.get(voice_choice, "he-il-1") if change_voice == "1" else "he-il-1"
 
         hash_line = "hash_extension=yes" if hash_setting == "1" else ""
 
-        # ---------- התיקון היחיד (אבל קריטי!) ----------
-        # הוספנו שורת default שמנתבת את כל ההקשות אל השלוחה שהמתקשר חייג.
-        # כך התפריט באמת עושה משהו במקום להיות ריק.
         ext_ini = f"""type=menu
 title=תפריט אוטומטי
 invalid=הקשת שגויה, נסה שוב
@@ -101,7 +82,3 @@ default=action:transfer $EXT
     except Exception as e:
         print("Error:", str(e))
         return ym_say_and_hangup("t-שגיאה טכנית. נסה שוב.")
-
-
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=True)   # השארתי debug=True כרצונך
