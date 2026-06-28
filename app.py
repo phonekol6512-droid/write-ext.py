@@ -21,20 +21,18 @@ def write_ext_module():
     try:
         token_dst = f"{system_dst.strip()}:{pass_dst.strip()}"
         clean_dst = ext_dst.strip().replace('*', '/').replace('-', '/').strip('/')
-        path_dst = f"ivr2:/{clean_dst}/ext.ini"
-
-        # שתי השורות המדויקות שביקשת להדפיס בקובץ
+        
+        # 🎯 שתי השורות המדויקות שביקשת להדפיס בקובץ
         ini_content = "type=menu\ntitle=נבנה באמצעות פון קול"
 
-        # העלאה הישירה והמקורית שלך
-        upload_url = f"{YEMOT_API_URL}UploadTextFile?token={token_dst}&what={path_dst}&contents={requests.utils.quote(ini_content)}"
+        # 🌟 שימוש בפקודה הרשמית והנכונה ליצירת שלוחה חדשה עם הגדרות במכה אחת!
+        upload_url = f"{YEMOT_API_URL}CustomCreate?token={token_dst}&path=ivr2:/{clean_dst}&ini={requests.utils.quote(ini_content)}"
         dst_response = requests.post(upload_url)
 
-        # בדיקה חכמה: אם ימות המשיח החזירה תשובה והיא מכילה OK - זה הצליח בוודאות
+        # בדיקה אם ימות המשיח אישרה את יצירת השלוחה
         if dst_response.status_code == 200 and '"responseStatus":"OK"' in dst_response.text:
             return ym_say_and_hangup("t-השלוחה הוגדרה בהצלחה כתפריט")
         
-        # אם חזרה תשובה אבל היא לא OK (למשל סיסמה שגויה או בעיית הרשאה) - נשמיע שגיאה מפורשת!
         return ym_say_and_hangup("t-שגיאה בהעלאת הנתונים למערכת. אנא בדוק את הפרטים.")
 
     except Exception as e:
