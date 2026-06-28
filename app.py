@@ -22,19 +22,12 @@ def write_ext_module():
         token_dst = f"{system_dst.strip()}:{pass_dst.strip()}"
         clean_dst = ext_dst.strip().replace('*', '/').replace('-', '/').strip('/')
         
-        # שתי השורות המדויקות שביקשת להדפיס בקובץ
-        ini_content = "type=menu\ntitle=נבנה באמצעות פון קול"
+        # 🌟 הקידוד המנצח: שתי השורות מומרות מראש לטקסט אינטרנט בטוח ללא אותיות בעברית בקוד!
+        encoded_ini = "type%3Dmenu%0Atitle%3D%D7%A0%D7%91%D7%A0%D7%94%20%D7%91%D7%90%D7%91%D7%A5%D7%A2%D7%95%D7%AA%20%D7%A4%D7%95%D7%9F%20%D7%A7%D7%95%D7%9C"
 
-        # 🌟 התיקון המוחלט: שליחת הנתונים בטופס (POST) שמקודד אוטומטית ל-UTF-8! 🌟
-        upload_url = f"{YEMOT_API_URL}CustomCreate"
-        payload = {
-            "token": token_dst,
-            "path": f"ivr2:/{clean_dst}",
-            "ini": ini_content
-        }
-        
-        # ביצוע הבקשה בצורה מאובטחת וחסינת קריסות
-        dst_response = requests.post(upload_url, data=payload)
+        # שליחה ישירה ב-URL בדיוק כמו שימות המשיח מחייבת
+        upload_url = f"{YEMOT_API_URL}CustomCreate?token={token_dst}&path=ivr2:/{clean_dst}&ini={encoded_ini}"
+        dst_response = requests.post(upload_url)
 
         # בדיקה אם ימות המשיח אישרה את יצירת השלוחה
         if dst_response.status_code == 200 and '"responseStatus":"OK"' in dst_response.text:
