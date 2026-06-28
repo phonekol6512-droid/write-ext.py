@@ -3,57 +3,118 @@ from flask import Flask, request, make_response
 
 app = Flask(__name__)
 
-YEMOT_API_URL = "https://call2all.co.il"
+YEMOT_API_URL = "https://www.call2all.co.il/ym/api/"
 
-@app.route('/write-ext', methods=['GET', 'POST'])
-def write_ext_module():
-    # 1. בקשת 3 הפרמטרים מהמאזין בטלפון
-    system_dst = request.values.get('system_dst')
-    pass_dst = request.values.get('pass_dst')
-    ext_dst = request.values.get('ext_dst')
 
-    # שלבי השאלות הברורים בטלפון
-    if not system_dst: 
-        return ym_read("system_dst", "t-אנא הקישו את מספר המערכת ובסיומה סולמית")
-    if not pass_dst:   
-        return ym_read("pass_dst", "t-אנא הקישו את סיסמת המערכת ובסיומה סולמית")
-    if not ext_dst:    
-        return ym_read("ext_dst", "t-אנא הקישו את מספר השלוחה להגדרה ובסיומה סולמית")
+@app.route('/create-menu', methods=['GET', 'POST'])
+def create_menu():
+
+    system = request.values.get("system")
+    password = request.values.get("password")
+    extension = request.values.get("extension")
+
+    change_digits = request.values.get("change_digits")
+    digits = request.values.get("digits")
+
+    if not system:
+        return ym_read("system", "t-אנא הקישו את מספר המערכת ובסיומה סולמית")
+
+    if not password:
+        return ym_read("password", "t-אנא הקישו את סיסמת המערכת ובסיומה סולמית")
+
+    if not extension:
+        return ym_read("extension", "t-אנא הקישו את מספר השלוחה ובסיומה סולמית")
+
+
+    # -------------------------
+    # מספר ספרות
+    # -------------------------
+
+    if change_digits is None:
+        return ym_read(
+            "change_digits",
+            "t-ברירת המחדל היא תפריט בעל ספרה אחת. להשארת ברירת המחדל הקישו 0. לשינוי הקישו 1",
+            1,
+            1
+        )
+
+    if change_digits == "1" and not digits:
+        return ym_read(
+            "digits",
+            "t-אנא הקישו את מספר הספרות הרצוי",
+            1,
+            2
+        )
+
+
+    # -------------------------
+    # בניית ext.ini
+    # -------------------------
+
+    ext = []
+
+    ext.append("type=menu")
+    ext.append("title=נבנה באמצעות פון קול")
+
+    if change_digits == "0":
+        ext.append("digits=1")
+    else:
+        ext.append(f"digits={digits}")
+
+
+    ext_ini = "\n".join(ext)
+
+
+    token = f"{system.strip()}:{password.strip()}"
+
+    clean = extension.strip().replace("*", "/").replace("-", "/").strip("/")
+
+    path = f"ivr2:/{clean}/ext.ini"
+
+    upload_url = (
+        f"{YEMOT_API_URL}UploadTextFile"
+        f"?token={token}"
+        f"&what={path}"
+        f"&contents={requests.utils.quote(ext_ini)}"
+    )
 
     try:
-        token_dst = f"{system_dst.strip()}:{pass_dst.strip()}"
-        clean_dst = ext_dst.strip().replace('*', '/').replace('-', '/').strip('/')
-        path_dst = f"ivr2:/{clean_dst}/ext.ini"
 
-        # 2. שתי השורות המדויקות שביקשת להדפיס בקובץ
-        ini_content = "type=menu\ntitle=נבנה באמצעות פון קול"
+        r = requests.post(upload_url, timeout=30)
 
-        # 3. 🌟 התיקון המוחלט: העלאה ב-POST עם params שמקודד אוטומטית ל-UTF-8 ללא קריסות! 🌟
-        upload_url = f"{YEMOT_API_URL}UploadTextFile"
-        payload = {
-            "token": token_dst,
-            "what": path_dst,
-            "contents": ini_content
-        }
-        
-        dst_response = requests.post(upload_url, params=payload)
+        print(r.status_code)
+        print(r.text)
 
-        if dst_response.status_code == 200 and '"responseStatus":"OK"' in dst_response.text:
-            return ym_say_and_hangup("t-השלוחה הוגדרה בהצלחה כתפריט")
-        return ym_say_and_hangup("t-שגיאה בהעלאת הנתונים למערכת. אנא בדוק את הפרטים.")
+        if r.status_code == 200 and "OK" in r.text:
+            return ym_say("t-השלוחה הוגדרה בהצלחה")
+
+        return ym_say("t-אירעה שגיאה ביצירת השלוחה")
 
     except Exception as e:
-        print(f"API Error: {str(e)}")
-        return ym_say_and_hangup("t-התרחשה שגיאה בתקשורת עם השרתים.")
 
-def ym_read(var_name, text):
-    res = make_response(f"read={text}={var_name},4,12,1,Digits")
-    res.headers['Content-Type'] = 'text/plain; charset=utf-8'
+        print(e)
+
+        return ym_say("t-שגיאת תקשורת")
+
+
+def ym_read(var_name, text, min_digits=4, max_digits=12):
+
+    res = make_response(
+        f"read={text}={var_name},{min_digits},{max_digits},1,Digits"
+    )
+
+    res.headers["Content-Type"] = "text/plain; charset=utf-8"
+
     return res
 
-def ym_say_and_hangup(text):
+
+def ym_say(text):
+
     res = make_response(f"id_list_message={text}")
-    res.headers['Content-Type'] = 'text/plain; charset=utf-8'
+
+    res.headers["Content-Type"] = "text/plain; charset=utf-8"
+
     return res
 
-__all__ = ['app']
+
+__all__ = ["app"]
