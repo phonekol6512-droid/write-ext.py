@@ -48,10 +48,10 @@ def create_menu():
         return ym_read("num_digits", "t-כמה ספרות יקלוט התפריט? 1 עד 9", 1)
 
     if not change_voice:
-        return ym_read("change_voice", "t-האם ברצונך לבחור קול רובוטי להודעות? 1-כן 0-לא", 1)
+        return ym_read("change_voice ", "t-האם ברצונך לבחור קול רובוטי להודעות? הקש אחת להגדרה או 0 להמשך ללא שינוי ", 1)
 
     if change_voice == "1" and not voice_choice:
-        return ym_read("voice_choice", "t-בחר קול: 1-זכר, 2-נקבה, 3-קול מהיר. הקש מספר", 1)
+        return ym_read("voice_choice", "t-בחר קול: לזכר הקש 1, לנקבה הקש 2, 3-קול מהיר. הקש מספר", 1)
 
     # ================ יצירת השלוחה ================
     try:
