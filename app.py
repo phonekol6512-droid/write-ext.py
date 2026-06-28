@@ -31,8 +31,12 @@ def create_menu():
     voice_choice = request.values.get('voice_choice')
     hash_setting = request.values.get('hash_setting')
 
-    # אם יש את כל הפרמטרים — עוברים ישר ליצירה
-    if system and password and extension and change_default and (num_digits or change_default == "0") and change_voice and (voice_choice or change_voice == "0") and hash_setting:
+    # ===================== אם יש את כל הנתונים — יצירה =====================
+    if (system and password and extension and 
+        change_default and (num_digits or change_default == "0") and 
+        change_voice and (voice_choice or change_voice == "0") and 
+        hash_setting):
+
         try:
             token = f"{system.strip()}:{password.strip()}"
             clean_ext = extension.strip().replace("*", "/").replace("-", "/").strip("/")
@@ -61,7 +65,7 @@ menu_voice={selected_voice}
                 "type": "ivr"
             }, timeout=10)
 
-            # העלאת ext.ini
+            # העלאת התפריט
             r = requests.post(f"{YEMOT_API_URL}UploadTextFile", params={
                 "token": token,
                 "what": f"ivr2:/{clean_ext}/ext.ini",
@@ -81,7 +85,7 @@ menu_voice={selected_voice}
             print("שגיאה:", str(e))
             return ym_say_and_hangup("t-שגיאה טכנית.")
 
-    # אם חסר משהו — ממשיך בשאלות
+    # ===================== שאלות =====================
     if not system: return ym_read("system", "t-אנא הקישו את מספר המערכת ובסיומה סולמית", 10)
     if not password: return ym_read("password", "t-אנא הקישו את סיסמת המערכת ובסיומה סולמית", 10)
     if not extension: return ym_read("extension", "t-אנא הקישו את מספר השלוחה החדשה ובסיומה סולמית", 10)
