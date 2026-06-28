@@ -88,4 +88,12 @@ menu_voice={selected_voice}
             hash_status = "מופעל" if hash_setting == "1" else "חוזר"
             return ym_say_and_hangup(f"t-השלוחה {clean_ext} נוצרה בהצלחה!\nהקשות: {digits}\nקול: {selected_voice}\nסולמית: {hash_status}")
         else:
-            return ym_say_and_hangup("t-שגיאה בהעלא
+            return ym_say_and_hangup("t-שגיאה בהעלאה.")
+
+    except Exception as e:
+        print("שגיאה:", str(e))
+        return ym_say_and_hangup("t-שגיאה. נסה שוב.")
+
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5000, debug=True)
