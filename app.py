@@ -1,9 +1,12 @@
+import re
+import logging
 import requests
 from flask import Flask, request, make_response
 
 app = Flask(__name__)
-
 YEMOT_API_URL = "https://www.call2all.co.il/ym/api/"
+
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 
 def ym_response(content: str):
@@ -22,6 +25,7 @@ def ym_say_and_hangup(text: str):
 
 @app.route('/create-menu', methods=['GET', 'POST'])
 def create_menu():
+    # קבלת פרמטרים
     system = request.values.get('system')
     password = request.values.get('password')
     extension = request.values.get('extension')
@@ -29,7 +33,7 @@ def create_menu():
     num_digits = request.values.get('num_digits')
     change_voice = request.values.get('change_voice')
     voice_choice = request.values.get('voice_choice')
-    hash_setting = request.values.get('hash_setting')   # חדש
+    hash_setting = request.values.get('hash_setting')
 
     # שלב 1-3
     if not system:
@@ -49,20 +53,29 @@ def create_menu():
     if not change_voice:
         return ym_read("change_voice", "t-לבחור קול רובוטי? 1-כן 0-לא", 1)
     if change_voice == "1" and not voice_choice:
-        return ym_read("voice_choice", "t-בחר קול: 1-זכר 2-נקבה 3-מהיר", 1)
+        return ym_read("voice_choice", "t-בחר קול: 1-אליק 2-יעקב 3-סיוון 4-אסנת", 1)
 
-    # שלב 6 - מקש סולמית (חדש)
+    # שלב 6 - סולמית
     if not hash_setting:
-        return ym_read("hash_setting", "t-האם להפעיל את מקש הסולמית # כשלוחה נפרדת? 1-כן 0-לא (חוזר לתפריט)", 1)
+        return ym_read("hash_setting", "t-האם להפעיל את מקש הסולמית # כשלוחה נפרדת? 1-כן 0-לא", 1)
 
-    # ===================== סוף - יצירה =====================
+    # ===================== יצירה =====================
     try:
-        token = f"{system.strip()}:{password.strip()}"
-        clean_ext = extension.strip().replace("*", "/").replace("-", "/").strip("/")
+        clean_ext = re.sub(r'\D', '', extension)
+        if not clean_ext:
+            return ym_say_and_hangup("t-שגיאה: השלוחה חייבת להכיל ספרות בלבד.")
 
-        digits = int(num_digits) if num_digits and num_digits.isdigit() else 1
-        voices = {"1": "he-male", "2": "he-female", "3": "he-il-2"}
-        selected_voice = voices.get(voice_choice, "he-il-1") if change_voice == "1" else "he-il-1"
+        token = f"{system.strip()}:{password.strip()}"
+        digits = int(num_digits) if (num_digits and num_digits.isdigit()) else 1
+
+        # מיפוי קולות
+        voice_map = {
+            "1": "Elik_2100",
+            "2": "Jacob",
+            "3": "Sivan",
+            "4": "Osnat"
+        }
+        selected_voice = voice_map.get(voice_choice, "he-il-1") if change_voice == "1" else "he-il-1"
 
         hash_line = "hash_extension=yes" if hash_setting == "1" else ""
 
@@ -73,9 +86,27 @@ timeout=הזמן נגמר, להתראות
 max_digits={digits}
 {hash_line}
 menu_voice={selected_voice}
+default=action:transfer $EXT
 """
 
-        r = requests.post(
+        # ---------- שלב 1: יצירת השלוחה (עובד גם לחדשה) ----------
+        r1 = requests.get(
+            f"{YEMOT_API_URL}UpdateExtension",
+            params={
+                "token": token,
+                "path": f"ivr2:{clean_ext}",
+                "type": "menu",
+                "max_digits": digits
+            },
+            timeout=15
+        )
+        logging.info(f"UpdateExtension: {r1.status_code} - {r1.text}")
+
+        if not (r1.status_code == 200 and '"responseStatus":"OK"' in r1.text):
+            return ym_say_and_hangup("t-שגיאה ביצירת השלוחה. בדקו את הפרטים.")
+
+        # ---------- שלב 2: העלאת קובץ התפריט ----------
+        r2 = requests.post(
             f"{YEMOT_API_URL}UploadTextFile",
             params={
                 "token": token,
@@ -84,18 +115,18 @@ menu_voice={selected_voice}
             },
             timeout=15
         )
+        logging.info(f"UploadTextFile: {r2.status_code} - {r2.text}")
 
-        print("Upload Status:", r.status_code)
-        print("Response:", r.text)
-
-        if r.status_code == 200 and '"responseStatus":"OK"' in r.text:
+        if r2.status_code == 200 and '"responseStatus":"OK"' in r2.text:
             hash_status = "מופעל כשלוחה נפרדת" if hash_setting == "1" else "חוזר לתפריט"
-            return ym_say_and_hangup(f"t-השלוחה {clean_ext} נוצרה! הקשות {digits} קול {selected_voice} סולמית: {hash_status}")
+            return ym_say_and_hangup(
+                f"t-השלוחה {clean_ext} נוצרה! הקשות {digits} קול {selected_voice} סולמית: {hash_status}"
+            )
         else:
-            return ym_say_and_hangup("t-שגיאה בהעלאה.")
+            return ym_say_and_hangup("t-השלוחה נוצרה אך הגדרות התפריט לא נטענו.")
 
     except Exception as e:
-        print("Error:", str(e))
+        logging.exception("שגיאה")
         return ym_say_and_hangup("t-שגיאה טכנית. נסה שוב.")
 
 
