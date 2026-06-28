@@ -126,8 +126,9 @@ default=action:transfer $EXT
               return ym_say_and_hangup(
                f"t-השלוחה {clean_ext} נוצרה. ספרות: {digits}. קול: {selected_voice}"
             )
-        else:
-            return ym_say_and_hangup("t-השלוחה נוצרה אך הגדרות התפריט לא נטענו.")
+         else:
+            # השלוחה נוצרה אבל התפריט לא נטען
+            return ym_say_and_hangup("t-השלוחה נוצרה אך התפריט לא נטען")
 
     except Exception as e:
         logging.exception("שגיאה")
