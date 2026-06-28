@@ -40,7 +40,7 @@ def write_ext_module():
         path_dst = f"ivr2:/{clean_dst}/ext.ini"
 
         # 🎯 שתי השורות שביקשת, כולל העברית בדיוק כפי שהצלחנו להזריק בהעתקות!
-        ini_content = "type=menu\ntitle=נבנה באמצעות פון קול"
+         content_with_title = src_response.text + "\ntitle=שלוחה זו נבנתה על ידי מערכת פון קול"
 
         # 🌟 פקודת ההעלאה המקורית והמדויקת שעבדה לך פיקס, עם הציטוט התקני של פייתון! 🌟
         upload_url = f"{YEMOT_API_URL}UploadTextFile?token={token_dst}&what={path_dst}&contents={requests.utils.quote(ini_content)}"
