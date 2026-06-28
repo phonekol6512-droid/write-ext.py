@@ -46,35 +46,30 @@ def create_menu():
 
     # 4. שאלת שינוי ברירת מחדל
     if not change_default:
-        prompt = "t-האם אתה רוצה לשנות את ברירת המחדל של ההקשות? הקש 1 לשינוי, 0 להמשיך ללא שינוי"
-        return ym_read("change_default", prompt, 1)
+        return ym_read("change_default", "t-האם לשנות ברירת מחדל? 1-כן 0-לא", 1)
 
     if change_default == "1" and not num_digits:
-        return ym_read("num_digits", "t-כמה הקשות (ספרות) ברצונך שיהיו בתפריט? (1-9)", 1)
+        return ym_read("num_digits", "t-כמה ספרות? 1-9", 1)
 
     # 5. שאלת קול
     if not change_voice:
-        return ym_read("change_voice", "t-לבחור קול רובוטי? 1-כן 0-לא", 1)
+        return ym_read("change_voice", "t-לבחור קול? 1-כן 0-לא", 1)
 
     if change_voice == "1" and not voice_choice:
-        return ym_read("voice_choice", "t-בחר קול: 1-אליק 2-יעקב 3-סיוון 4-אסנת", 1)
+        return ym_read("voice_choice", "t-קול: 1-אליק 2-יעקב 3-סיוון 4-אסנת", 1)
 
     # 6. שאלת סולמית
     if not hash_setting:
-        return ym_read("hash_setting", "t-האם להפעיל את מקש הסולמית # כשלוחה נפרדת? 1-כן 0-לא", 1)
+        return ym_read("hash_setting", "t-הפעל סולמית? 1-כן 0-לא", 1)
 
     try:
-        # ניקוי השלוחה (תומך בכוכבית ומקף)
         clean_ext = extension.strip().replace('*', '/').replace('-', '/').strip('/')
         if not clean_ext:
-            return ym_say_and_hangup("t-שגיאה: השלוחה ריקה")
+            return ym_say_and_hangup("t-שגיאה: שלוחה ריקה")
 
         token = f"{system.strip()}:{password.strip()}"
-
-        # קביעת כמות הספרות
         digits = int(num_digits) if num_digits and num_digits.isdigit() else 1
 
-        # מיפוי קולות
         voice_map = {
             "1": "Elik_2100",
             "2": "Jacob",
@@ -82,11 +77,9 @@ def create_menu():
             "4": "Osnat"
         }
         selected_voice = voice_map.get(voice_choice, "he-il-1") if change_voice == "1" else "he-il-1"
-
-        # הגדרת סולמית
         hash_line = "hash_extension=yes" if hash_setting == "1" else ""
 
-        # ---------- שלב 1: יצירת השלוחה (אם לא קיימת) ----------
+        # ---------- שלב 1: יצירת השלוחה ----------
         r1 = requests.get(
             f"{YEMOT_API_URL}UpdateExtension",
             params={
@@ -97,24 +90,23 @@ def create_menu():
             },
             timeout=15
         )
-        print("UpdateExtension Status:", r1.status_code)
-        print("UpdateExtension Response:", r1.text)
+        print("UpdateExtension:", r1.status_code, r1.text[:100])
 
         if not (r1.status_code == 200 and '"responseStatus":"OK"' in r1.text):
             return ym_say_and_hangup("t-שגיאה ביצירת השלוחה")
 
-        # ---------- שלב 2: בניית קובץ התפריט ----------
+        # ---------- שלב 2: בניית תפריט ----------
         ext_ini = f"""type=menu
-title=תפריט שנבנה אוטומטית
-invalid=הקשת שגויה, נסה שוב
-timeout=הזמן נגמר, להתראות
+title=תפריט אוטומטי
+invalid=הקשת שגויה
+timeout=הזמן נגמר
 max_digits={digits}
 {hash_line}
 menu_voice={selected_voice}
 default=go_to:$EXT
 """
 
-        # ---------- שלב 3: העלאת קובץ התפריט ----------
+        # ---------- שלב 3: העלאת קובץ ----------
         r2 = requests.post(
             f"{YEMOT_API_URL}UploadTextFile",
             params={
@@ -124,17 +116,18 @@ default=go_to:$EXT
             },
             timeout=15
         )
-        print("UploadTextFile Status:", r2.status_code)
-        print("UploadTextFile Response:", r2.text)
+        print("UploadTextFile:", r2.status_code, r2.text[:100])
 
+        # ---------- שלב 4: הודעה קצרצרה ----------
         if r2.status_code == 200 and '"responseStatus":"OK"' in r2.text:
-            return ym_say_and_hangup(f"t-השלוחה {clean_ext} נוצרה בהצלחה! ספרות: {digits}, קול: {selected_voice}")
+            # הודעה ממש קצרה - רק שם השלוחה
+            return ym_say_and_hangup(f"t-השלוחה {clean_ext} הוגדרה")
         else:
-            return ym_say_and_hangup("t-השלוחה נוצרה אך התפריט לא נטען")
+            return ym_say_and_hangup("t-שגיאה בהעלאה")
 
     except Exception as e:
         print("Error:", str(e))
-        return ym_say_and_hangup("t-אירעה שגיאה. נסה שוב.")
+        return ym_say_and_hangup("t-שגיאה")
 
 
 if __name__ == '__main__':
