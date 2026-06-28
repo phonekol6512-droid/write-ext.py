@@ -23,6 +23,11 @@ def ym_say_and_hangup(text: str):
     return ym_response(f"id_list_message={text}\nend=true")
 
 
+def ym_menu_with_choice(text: str, var_name: str, prompt: str, max_digits=1):
+    """משמיע הודעה ואז שואל בחירה (בלי לנתק)"""
+    return ym_response(f"id_list_message={text}\nread={prompt}={var_name},{max_digits},12,1,Digits")
+
+
 @app.route('/create-menu', methods=['GET', 'POST'])
 def create_menu():
     # פרמטרים
@@ -34,6 +39,7 @@ def create_menu():
     change_voice = request.values.get('change_voice')
     voice_choice = request.values.get('voice_choice')
     hash_setting = request.values.get('hash_setting')
+    menu_choice = request.values.get('menu_choice')  # בחירת המשתמש בסוף
 
     # שלב 1-3
     if not system:
@@ -59,9 +65,20 @@ def create_menu():
     if not hash_setting:
         return ym_read("hash_setting", "t-האם להפעיל את מקש הסולמית # כשלוחה נפרדת? 1-כן 0-לא", 1)
 
-    # ===================== יצירה =====================
+    # ---------- שלב 7: טיפול בבחירה בסוף התהליך ----------
+    if menu_choice:
+        if menu_choice == "1":
+            # המשתמש בחר לסיים
+            return ym_say_and_hangup("t-להתראות")
+        elif menu_choice == "2":
+            # המשתמש בחר לחזור לתפריט הראשי
+            # נניח שהתפריט הראשי נמצא בשלוחה 100 (ניתן לשנות)
+            return ym_response("id_list_message=t-חוזר לתפריט הראשי\naction=transfer 100")
+        else:
+            return ym_say_and_hangup("t-בחירה לא תקינה. להתראות.")
+
+    # ===================== יצירת השלוחה =====================
     try:
-        # ----- ניקוי השלוחה (תומך בכוכבית ומקף) -----
         clean_ext = extension.strip().replace('*', '/').replace('-', '/').strip('/')
         if not clean_ext:
             return ym_say_and_hangup("t-שגיאה: השלוחה ריקה.")
@@ -69,7 +86,6 @@ def create_menu():
         token = f"{system.strip()}:{password.strip()}"
         digits = int(num_digits) if (num_digits and num_digits.isdigit()) else 1
 
-        # מיפוי קולות
         voice_map = {
             "1": "Elik_2100",
             "2": "Jacob",
@@ -90,7 +106,7 @@ menu_voice={selected_voice}
 default=action:transfer $EXT
 """
 
-        # ---------- שלב 1: יצירת השלוחה (UpdateExtension) ----------
+        # ---------- שלב 1: יצירת השלוחה ----------
         r1 = requests.get(
             f"{YEMOT_API_URL}UpdateExtension",
             params={
@@ -104,10 +120,9 @@ default=action:transfer $EXT
         logging.info(f"UpdateExtension: {r1.status_code} - {r1.text}")
 
         if not (r1.status_code == 200 and '"responseStatus":"OK"' in r1.text):
-            # הודעה קצרה במקרה של כישלון
             return ym_say_and_hangup("t-שגיאה ביצירת השלוחה")
 
-        # ---------- שלב 2: העלאת קובץ התפריט (UploadTextFile) ----------
+        # ---------- שלב 2: העלאת קובץ התפריט ----------
         r2 = requests.post(
             f"{YEMOT_API_URL}UploadTextFile",
             params={
@@ -119,14 +134,18 @@ default=action:transfer $EXT
         )
         logging.info(f"UploadTextFile: {r2.status_code} - {r2.text}")
 
-        # ---------- שלב 3: הודעת סיכום (קצרה!) ----------
+        # ---------- שלב 3: הודעה + שאלה (בלי לנתק) ----------
         if r2.status_code == 200 and '"responseStatus":"OK"' in r2.text:
-            # בניית הודעה קצרה - ללא יותר מדי פרטים
-            hash_status = "פעיל" if hash_setting == "1" else "לא פעיל"
-            msg = f"t-השלוחה {clean_ext} נוצרה. ספרות: {digits}. קול: {selected_voice}"
-            return ym_say_and_hangup(msg)
+            # הודעה ראשונה
+            msg1 = f"t-השלוחה {clean_ext} נוצרה. ספרות: {digits}. קול: {selected_voice}"
+            # ואז שואלים: לסיום לחץ 1, לחזור לתפריט ראשי לחץ 2
+            return ym_menu_with_choice(
+                text=msg1,
+                var_name="menu_choice",
+                prompt="t-לסיום לחץ 1, לחזור לתפריט ראשי לחץ 2",
+                max_digits=1
+            )
         else:
-            # השלוחה נוצרה אבל התפריט לא נטען
             return ym_say_and_hangup("t-השלוחה נוצרה אך התפריט לא נטען")
 
     except Exception as e:
