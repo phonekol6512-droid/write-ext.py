@@ -86,7 +86,7 @@ hash_extension=yes
         print("Response:", response.text)
 
         if response.status_code == 200 and '"responseStatus":"OK"' in response.text:
-            return ym_say_and_hangup(f"t-השלוחה {clean_ext} נוצרה בהצלחה! ברירת מחדל: {digits} ספרות.")
+            return ym_say_and_hangup(f"t-השלוחה {clean_ext} נוצרה בהצלחה!פרטי התפריט ברירת מחדל: {digits} ספרות.")
         else:
             return ym_say_and_hangup("t-שגיאה בהעלאת השלוחה.")
 
