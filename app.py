@@ -31,7 +31,7 @@ def create_menu():
         path = f"ivr2:/{clean_ext}/ext.ini"
 
         ext_ini = """type=menu
-title=נבנה באמצעות פון קול"""
+title=נבנה באמצעות מערכת פון קול"""
 
         upload_url = (
             f"{YEMOT_API_URL}UploadTextFile"
