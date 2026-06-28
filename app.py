@@ -123,10 +123,9 @@ default=action:transfer $EXT
         if r2.status_code == 200 and '"responseStatus":"OK"' in r2.text:
             # בניית הודעה קצרה - ללא יותר מדי פרטים
             hash_status = "פעיל" if hash_setting == "1" else "לא פעיל"
-              return ym_say_and_hangup(
-               f"t-השלוחה {clean_ext} נוצרה. ספרות: {digits}. קול: {selected_voice}"
-            )
-         else:
+            msg = f"t-השלוחה {clean_ext} נוצרה. ספרות: {digits}. קול: {selected_voice}"
+            return ym_say_and_hangup(msg)
+        else:
             # השלוחה נוצרה אבל התפריט לא נטען
             return ym_say_and_hangup("t-השלוחה נוצרה אך התפריט לא נטען")
 
