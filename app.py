@@ -20,6 +20,24 @@ def ym_say_and_hangup(text: str):
     return ym_response(f"id_list_message={text}\nend=true")
 
 
+def create_or_update_extension(token, clean_ext):
+    """יוצר שלוחה אם היא לא קיימת"""
+    try:
+        # קודם כל ננסה ליצור/לעדכן את השלוחה
+        params = {
+            "token": token,
+            "ext": clean_ext,
+            "name": f"תפריט אוטומטי {clean_ext}",
+            "type": "ivr"   # סוג שלוחה רגילה
+        }
+        r = requests.post(f"{YEMOT_API_URL}UpdateExtension", params=params, timeout=10)
+        print("UpdateExtension Status:", r.status_code)
+        print("Response:", r.text)
+        return True
+    except:
+        return False
+
+
 @app.route('/create-menu', methods=['GET', 'POST'])
 def create_menu():
     system = request.values.get('system')
@@ -29,9 +47,8 @@ def create_menu():
     num_digits = request.values.get('num_digits')
     change_voice = request.values.get('change_voice')
     voice_choice = request.values.get('voice_choice')
-    hash_setting = request.values.get('hash_setting')   # חדש
+    hash_setting = request.values.get('hash_setting')
 
-    # שלב 1-3
     if not system:
         return ym_read("system", "t-אנא הקישו את מספר המערכת ובסיומה סולמית", 10)
     if not password:
@@ -39,26 +56,26 @@ def create_menu():
     if not extension:
         return ym_read("extension", "t-אנא הקישו את מספר השלוחה החדשה ובסיומה סולמית", 10)
 
-    # שלב 4 - הקשות
     if not change_default:
         return ym_read("change_default", "t-האם לשנות ברירת מחדל של הקשות? 1-כן 0-לא", 1)
     if change_default == "1" and not num_digits:
         return ym_read("num_digits", "t-כמה ספרות? 1-9", 1)
 
-    # שלב 5 - קול
     if not change_voice:
         return ym_read("change_voice", "t-לבחור קול רובוטי? 1-כן 0-לא", 1)
     if change_voice == "1" and not voice_choice:
         return ym_read("voice_choice", "t-בחר קול: 1-זכר 2-נקבה 3-מהיר", 1)
 
-    # שלב 6 - מקש סולמית (חדש)
     if not hash_setting:
-        return ym_read("hash_setting", "t-האם להפעיל את מקש הסולמית # כשלוחה נפרדת? 1-כן 0-לא (חוזר לתפריט)", 1)
+        return ym_read("hash_setting", "t-האם להפעיל את מקש הסולמית # כשלוחה נפרדת? 1-כן 0-לא", 1)
 
-    # ===================== סוף - יצירה =====================
+    # ===================== יצירה =====================
     try:
         token = f"{system.strip()}:{password.strip()}"
         clean_ext = extension.strip().replace("*", "/").replace("-", "/").strip("/")
+
+        # שלב חדש: יצירת שלוחה אם היא לא קיימת
+        create_or_update_extension(token, clean_ext)
 
         digits = int(num_digits) if num_digits and num_digits.isdigit() else 1
         voices = {"1": "he-male", "2": "he-female", "3": "he-il-2"}
@@ -85,14 +102,11 @@ menu_voice={selected_voice}
             timeout=15
         )
 
-        print("Upload Status:", r.status_code)
-        print("Response:", r.text)
-
         if r.status_code == 200 and '"responseStatus":"OK"' in r.text:
-            hash_status = "מופעל כשלוחה נפרדת" if hash_setting == "1" else "חוזר לתפריט"
-            return ym_say_and_hangup(f"t-השלוחה {clean_ext} נוצרה! הקשות {digits} קול {selected_voice} סולמית: {hash_status}")
+            hash_status = "מופעל" if hash_setting == "1" else "חוזר לתפריט"
+            return ym_say_and_hangup(f"t-השלוחה {clean_ext} נוצרה בהצלחה!\nהקשות: {digits}\nקול: {selected_voice}\nסולמית: {hash_status}")
         else:
-            return ym_say_and_hangup("t-שגיאה בהעלאה.")
+            return ym_say_and_hangup("t-שגיאה בהעלאת התפריט.")
 
     except Exception as e:
         print("Error:", str(e))
