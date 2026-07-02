@@ -1,8 +1,12 @@
+import re
+import logging
 import requests
 from flask import Flask, request, make_response
 
 app = Flask(__name__)
 YEMOT_API_URL = "https://www.call2all.co.il/ym/api/"
+
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 
 def ym_response(content: str):
@@ -12,14 +16,12 @@ def ym_response(content: str):
 
 
 def ym_read(var_name: str, prompt: str, max_digits=1):
-    content = f"read={prompt}={var_name},{max_digits},12,1,Digits"
-    return ym_response(content)
+    return ym_response(f"read={prompt}={var_name},{max_digits},12,1,Digits")
 
 
-def ym_say_and_hangup(text: str):
-    # משתמש ב-say במקום id_list_message
-    content = f"say=he-IL,{text}\nend=true"
-    return ym_response(content)
+def ym_say_and_transfer(text: str, target: str):
+    """משמיע הודעה ומעביר לתפריט ראשי."""
+    return ym_response(f"id_list_message={text}\ntransfer={target}")
 
 
 @app.route('/create-menu', methods=['GET', 'POST'])
@@ -41,25 +43,25 @@ def create_menu():
         return ym_read("extension", "t-אנא הקישו את מספר השלוחה החדשה ובסיומה סולמית", 10)
 
     if not change_default:
-        return ym_read("change_default", "t-האם לשנות ברירת מחדל? 1-כן 0-לא", 1)
+        return ym_read("change_default", "t-האם לשנות ברירת מחדל של הקשות? 1-כן 0-לא", 1)
     if change_default == "1" and not num_digits:
         return ym_read("num_digits", "t-כמה ספרות? 1-9", 1)
 
     if not change_voice:
-        return ym_read("change_voice", "t-לבחור קול? 1-כן 0-לא", 1)
+        return ym_read("change_voice", "t-לבחור קול רובוטי? 1-כן 0-לא", 1)
     if change_voice == "1" and not voice_choice:
-        return ym_read("voice_choice", "t-קול: 1-אליק 2-יעקב 3-סיוון 4-אסנת", 1)
+        return ym_read("voice_choice", "t-בחר קול: 1-אליק 2-יעקב 3-סיוון 4-אסנת", 1)
 
     if not hash_setting:
-        return ym_read("hash_setting", "t-הפעל סולמית? 1-כן 0-לא", 1)
+        return ym_read("hash_setting", "t-האם להפעיל את מקש הסולמית # כשלוחה נפרדת? 1-כן 0-לא", 1)
 
     try:
         clean_ext = extension.strip().replace('*', '/').replace('-', '/').strip('/')
         if not clean_ext:
-            return ym_say_and_hangup("השלוחה ריקה")
+            return ym_say_and_transfer("t-שגיאה: השלוחה ריקה", "100")
 
         token = f"{system.strip()}:{password.strip()}"
-        digits = int(num_digits) if num_digits and num_digits.isdigit() else 1
+        digits = int(num_digits) if (num_digits and num_digits.isdigit()) else 1
 
         voice_map = {
             "1": "Elik_2100",
@@ -68,9 +70,19 @@ def create_menu():
             "4": "Osnat"
         }
         selected_voice = voice_map.get(voice_choice, "he-il-1") if change_voice == "1" else "he-il-1"
+
         hash_line = "hash_extension=yes" if hash_setting == "1" else ""
 
-        # ---------- יצירת השלוחה ----------
+        ext_ini = f"""type=menu
+title=תפריט אוטומטי
+invalid=הקשת שגויה, נסה שוב
+timeout=הזמן נגמר, להתראות
+max_digits={digits}
+{hash_line}
+menu_voice={selected_voice}
+default=action:transfer $EXT
+"""
+
         r1 = requests.get(
             f"{YEMOT_API_URL}UpdateExtension",
             params={
@@ -81,21 +93,10 @@ def create_menu():
             },
             timeout=15
         )
-        print("UpdateExtension:", r1.status_code, r1.text[:100])
+        logging.info(f"UpdateExtension: {r1.status_code} - {r1.text}")
 
         if not (r1.status_code == 200 and '"responseStatus":"OK"' in r1.text):
-            return ym_say_and_hangup("שגיאה ביצירת השלוחה")
-
-        # ---------- העלאת קובץ ----------
-        ext_ini = f"""type=menu
-title=תפריט אוטומטי
-invalid=הקשת שגויה
-timeout=הזמן נגמר
-max_digits={digits}
-{hash_line}
-menu_voice={selected_voice}
-default=go_to:$EXT
-"""
+            return ym_say_and_transfer("t-שגיאה ביצירת השלוחה", "100")
 
         r2 = requests.post(
             f"{YEMOT_API_URL}UploadTextFile",
@@ -106,17 +107,18 @@ default=go_to:$EXT
             },
             timeout=15
         )
-        print("UploadTextFile:", r2.status_code, r2.text[:100])
+        logging.info(f"UploadTextFile: {r2.status_code} - {r2.text}")
 
-        # ---------- הודעה ----------
         if r2.status_code == 200 and '"responseStatus":"OK"' in r2.text:
-            return ym_say_and_hangup(f"השלוחה {clean_ext} הוגדרה")
+            msg = f"t-השלוחה {clean_ext} נוצרה. ספרות: {digits}. קול: {selected_voice}"
+            # משמיע הודעה ומעביר לתפריט ראשי 100
+            return ym_say_and_transfer(msg, "100")
         else:
-            return ym_say_and_hangup("העלאה נכשלה")
+            return ym_say_and_transfer("t-השלוחה נוצרה אך התפריט לא נטען", "100")
 
     except Exception as e:
-        print("Error:", str(e))
-        return ym_say_and_hangup("שגיאה")
+        logging.exception("שגיאה")
+        return ym_say_and_transfer("t-שגיאה טכנית. נסה שוב", "100")
 
 
 if __name__ == '__main__':
