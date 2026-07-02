@@ -36,24 +36,24 @@ def create_menu():
     hash_setting = request.values.get('hash_setting')
 
     if not system:
-        return ym_read("system", "t-אנא הקישו את מספר המערכת ובסיומה סולמית", 10)
+        return ym_read("system", "t-אנא הקישו את מספר המערכת ובסיום הקישו סולמית", 10)
     if not password:
-        return ym_read("password", "t-אנא הקישו את סיסמת המערכת ובסיומה סולמית", 10)
+        return ym_read("password", "t-אנא הקישו את סיסמת המערכת ובסיום הקישו סולמית", 10)
     if not extension:
-        return ym_read("extension", "t-אנא הקישו את מספר השלוחה החדשה ובסיומה סולמית", 10)
+        return ym_read("extension", "t-אנא הקישו את מספר השלוחה ובסיום הקישו סולמית, לשלוחה פנימית הקישו כוכבית בין שלוחה לשלוחה", 10)
 
     if not change_default:
-        return ym_read("change_default", "t-האם לשנות ברירת מחדל של הקשות? 1-כן 0-לא", 1)
+        return ym_read("change_default", "t-ברירת מחדל לכל שלוחה יש סיפרה אחת בלבד וכשמקישים 1 אז נכנסים לשלוחה 1 ואם מקישים 2 אז נכנסים לשלוחה 2, לשינוי הקישו 1 וסולמית להמשך ללא שינוי הקישו 0", 1)
     if change_default == "1" and not num_digits:
-        return ym_read("num_digits", "t-כמה ספרות? 1-9", 1)
+        return ym_read("num_digits", "t-אנא הקישו את מספר ההקשות בסיום הקישו סולמית", 1)
 
     if not change_voice:
-        return ym_read("change_voice", "t-לבחור קול רובוטי? 1-כן 0-לא", 1)
+        return ym_read("change_voice", "t-האם ברצונך להגדיר את הקול הרובוטי בשלוחה, להגדרה הקישו 1 וסולמית להמשך ללא שינוי הקישו 0 וסולמית", 1)
     if change_voice == "1" and not voice_choice:
-        return ym_read("voice_choice", "t-בחר קול: 1-אליק 2-יעקב 3-סיוון 4-אסנת", 1)
+        return ym_read("voice_choice", "t-בחר קול:  לאליק הקישו 1 וסולמית ליעקב הקישו 2 וסולמית לסיוון הקישו 3 וסולמית לסיוון הקישו 4 וסולמית", 1)
 
     if not hash_setting:
-        return ym_read("hash_setting", "t-האם להפעיל את מקש הסולמית # כשלוחה נפרדת? 1-כן 0-לא", 1)
+        return ym_read("hash_setting", "t-ברירת המחדל מקש סולמית משמש לחזרה לתפריט הקודם, אם ברצונך ששלוחה סולמית תיהיה שלוחה בפני עצמה הקישו 1 וסולמית להמשך ללא שינוי הקישו 0 וסולמית", 1)
 
     try:
         clean_ext = extension.strip().replace('*', '/').replace('-', '/').strip('/')
@@ -74,13 +74,11 @@ def create_menu():
         hash_line = "hash_extension=yes" if hash_setting == "1" else ""
 
         ext_ini = f"""type=menu
-title=תפריט אוטומטי
-invalid=הקשת שגויה, נסה שוב
-timeout=הזמן נגמר, להתראות
+title=שלוחת תפריט נבנה באמצעות מגדיר פון 
 max_digits={digits}
 {hash_line}
 menu_voice={selected_voice}
-default=action:transfer $EXT
+
 """
 
         r1 = requests.get(
