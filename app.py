@@ -20,8 +20,13 @@ def ym_read(var_name: str, prompt: str, max_digits=1):
 
 
 def ym_say_and_go_back(text: str):
-    """משמיע הודעה וחוזר לתפריט הקודם (ללא לופ)"""
+    """משמיע הודעה (id_list_message) וחוזר לתפריט הקודם (ללא לופ)"""
     return ym_response(f"id_list_message={text}")
+
+
+def ym_say_and_go_back_tts(text: str):
+    """משמיע הודעה באמצעות TTS וחוזר אוטומטית (ללא ניתוק)"""
+    return ym_response(f"say=he-IL,{text}")
 
 
 @app.route('/create-menu', methods=['GET', 'POST'])
@@ -192,7 +197,8 @@ rate={selected_speed}
             hash_status = "שלוחה נפרדת" if hash_setting == "1" else "ברירת מחדל (חזרה)"
             star_status = "שלוחה נפרדת" if star_setting == "1" else "ברירת מחדל (הפרדה)"
             msg = f"t-השלוחה {clean_ext} הוגדרה בהצלחה על ידי מגדיר פון שלום והתראות. מהירות: {speed_label}. ספירת העומר: {omer_status}. ועידה: {conf_status}. סולמית: {hash_status}. כוכבית: {star_status}"
-            return ym_say_and_go_back(msg)
+            # שימוש ב-TTS כדי למנוע ניתוק
+            return ym_say_and_go_back_tts(msg)
         else:
             return ym_say_and_go_back("t-השלוחה נוצרה אך התפריט לא נטען")
 
