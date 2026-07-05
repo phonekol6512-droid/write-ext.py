@@ -1,4 +1,3 @@
-import re
 import logging
 import requests
 from flask import Flask, request, make_response
@@ -20,11 +19,15 @@ def ym_read(var_name: str, prompt: str, max_digits=1):
     return ym_response(f"read={prompt}={var_name},{max_digits},12,1,Digits")
 
 
-def ym_say_and_go_back(text: str, target_folder: str = ".."):
-    """משמיע הודעה וחוזר לתפריט הקודם"""
-    # .. = חזרה לתפריט אב (המומלץ)
-    # /   = חזרה לתפריט הראשי
-    return ym_response(f"id_list_message={text}&go_to_folder={target_folder}")
+def ym_say_and_go_back(text: str):
+    """משמיע הודעה ואז חוזר לתפריט האב"""
+    # גישה 1: id_list_message + go_to_folder
+    return ym_response(f"id_list_message={text}&go_to_folder=..")
+
+
+def ym_say_and_restart(text: str):
+    """אלטרנטיבה: משמיע ואז מפעיל מחדש את השלוחה"""
+    return ym_response(f"id_list_message={text}&go_to_folder=/")
 
 
 @app.route('/create-menu', methods=['GET', 'POST'])
@@ -44,51 +47,33 @@ def create_menu():
     hash_setting = request.values.get('hash_setting')
     star_setting = request.values.get('star_setting')
 
-    # ---------- שלב 1: מספר מערכת ----------
+    # ---------- שלבים של הקלטות ----------
     if not system:
         return ym_read("system", "t-אנא הקישו את מספר המערכת ובסיום הקישו סולמית", 10)
-
-    # ---------- שלב 2: סיסמה ----------
     if not password:
         return ym_read("password", "t-אנא הקישו את סיסמת המערכת ובסיום הקישו סולמית", 10)
-
-    # ---------- שלב 3: מספר שלוחה ----------
     if not extension:
         return ym_read("extension", "t-אנא הקישו את מספר השלוחה ובסיום הקישו סולמית, לשלוחה פנימית הקישו כוכבית בין שלוחה לשלוחה", 10)
-
-    # ---------- שלב 4: שינוי ברירת מחדל של הקשות ----------
     if not change_default:
         return ym_read("change_default", "t-ברירת מחדל לכל שלוחה יש סיפרה אחת בלבד וכשמקישים 1 אז נכנסים לשלוחה 1 ואם מקישים 2 אז נכנסים לשלוחה 2, לשינוי הקישו 1 וסולמית להמשך ללא שינוי הקישו 0", 1)
     if change_default == "1" and not num_digits:
         return ym_read("num_digits", "t-אנא הקישו את מספר ההקשות בסיום הקישו סולמית", 1)
-
-    # ---------- שלב 5: בחירת קול ----------
     if not change_voice:
         return ym_read("change_voice", "t-האם ברצונך להגדיר את הקול הרובוטי בשלוחה, להגדרה הקישו 1 וסולמית להמשך ללא שינוי הקישו 0 וסולמית", 1)
     if change_voice == "1" and not voice_choice:
         return ym_read("voice_choice", "t-בחר קול: לאליק הקישו 1 וסולמית ליעקב הקישו 2 וסולמית לסיוון הקישו 3 וסולמית לאסנת הקישו 4 וסולמית", 1)
-
-    # ---------- שלב 6: מהירות הקריאה ----------
     if not change_speed:
         return ym_read("change_speed", "t-האם ברצונך לשנות את מהירות הקול הרובוטי? לשינוי הקישו 1 וסולמית להמשך ללא שינוי הקישו 0 וסולמית", 1)
     if change_speed == "1" and not speed_choice:
         return ym_read("speed_choice", "t-בחר מהירות: לקול קצת איטי הקש 1, לקול צת מהיר הקש 2, לקול איטי הקש 3, לקול מהיר הקש 4, לקול איטי מאוד הקש 5, לקול מהיר מאוד הקש 6, לקול איטי במיוחד הקש 7, לקול מהיר במיוחד הקש 8", 1)
-
-    # ---------- שלב 7: ספירת העומר ----------
     if omer_choice is None:
         return ym_read("omer_choice", "t-האם להפעיל בתפריט תזכורת ספירת העומר? להפעלה הקישו 1 וסולמית לביטול הקישו 0 וסולמית", 1)
-
-    # ---------- שלב 8: הודעת ועידה פעילה ----------
     if conf_bridge is None:
         return ym_read("conf_bridge", "t-האם ברצונך להפעיל הודעה שמודיעה אם קיימת ועידה פעילה? להפעלה הקישו 1 וסולמית לביטול הקישו 0 וסולמית", 1)
     if conf_bridge == "1" and not conf_extension:
         return ym_read("conf_extension", "t-אנא הקישו את מספר השלוחה של חדר הועידה ובסיום הקישו סולמית לשלוחה פנימית הקישו כוכבית בין שלוחה לשלוחה", 10)
-
-    # ---------- שלב 9: מקש סולמית # ----------
     if not hash_setting:
         return ym_read("hash_setting", "t-ברירת המחדל מקש סולמית משמש לחזרה לתפריט הקודם, אם ברצונך ששלוחה סולמית תיהיה שלוחה בפני עצמה הקישו 1 וסולמית להמשך ללא שינוי הקישו 0 וסולמית", 1)
-
-    # ---------- שלב 10: מקש כוכבית * ----------
     if star_setting is None:
         return ym_read("star_setting", "t-ברירת המחדל מקש כוכבית משמש כמקש חזרה לתפריט הראשי, אם ברצונך ששלוחת כוכבית תיהיה שלוחה בפני עצמה הקישו 1 וסולמית להמשך ללא שינוי הקישו 0 וסולמית", 1)
 
@@ -101,32 +86,17 @@ def create_menu():
         token = f"{system.strip()}:{password.strip()}"
         digits = int(num_digits) if (num_digits and num_digits.isdigit()) else 1
 
-        # ---------- מיפוי קולות ----------
-        voice_map = {
-            "1": "Elik_2100",
-            "2": "Jacob",
-            "3": "Sivan",
-            "4": "Osnat"
-        }
+        voice_map = {"1": "Elik_2100", "2": "Jacob", "3": "Sivan", "4": "Osnat"}
         selected_voice = voice_map.get(voice_choice, "he-il-1") if change_voice == "1" else "he-il-1"
 
-        # ---------- מיפוי מהירויות ----------
-        speed_map = {
-            "1": "-2", "2": "2", "3": "-4", "4": "4",
-            "5": "-7", "6": "7", "7": "-10", "8": "10"
-        }
+        speed_map = {"1": "-2", "2": "2", "3": "-4", "4": "4", "5": "-7", "6": "7", "7": "-10", "8": "10"}
         selected_speed = speed_map.get(speed_choice, "0") if change_speed == "1" else "0"
 
-        # ---------- הגדרות נוספות ----------
         omer_line = "omer_today_play=yes" if omer_choice == "1" else ""
-        conf_lines = ""
-        if conf_bridge == "1" and conf_extension:
-            conf_lines = f"menu_say_conf_bridge=yes\nmenu_say_conf_bridge_1={conf_extension.strip()}"
-
+        conf_lines = f"menu_say_conf_bridge=yes\nmenu_say_conf_bridge_1={conf_extension.strip()}" if conf_bridge == "1" and conf_extension else ""
         hash_line = "hash_extension=yes" if hash_setting == "1" else ""
         star_line = "star_extension=yes" if star_setting == "1" else ""
 
-        # ---------- בניית קובץ התפריט ----------
         ext_ini = f"""type=menu
 title=שלוחת תפריט נבנה באמצעות מגדיר פון
 max_digits={digits}
@@ -138,50 +108,25 @@ rate={selected_speed}
 {conf_lines}
 """
 
-        # ---------- שלב 1: יצירת השלוחה ----------
-        r1 = requests.get(
-            f"{YEMOT_API_URL}UpdateExtension",
-            params={
-                "token": token,
-                "path": f"ivr2:{clean_ext}",
-                "type": "menu",
-                "max_digits": digits
-            },
-            timeout=15
-        )
-        logging.info(f"UpdateExtension: {r1.status_code} - {r1.text}")
+        # שלב 1: יצירת שלוחה
+        r1 = requests.get(f"{YEMOT_API_URL}UpdateExtension", params={
+            "token": token, "path": f"ivr2:{clean_ext}", "type": "menu", "max_digits": digits
+        }, timeout=15)
 
         if not (r1.status_code == 200 and '"responseStatus":"OK"' in r1.text):
             return ym_say_and_go_back("t-שגיאה ביצירת השלוחה")
 
-        # ---------- שלב 2: העלאת קובץ התפריט ----------
-        r2 = requests.post(
-            f"{YEMOT_API_URL}UploadTextFile",
-            params={
-                "token": token,
-                "what": f"ivr2:/{clean_ext}/ext.ini",
-                "contents": ext_ini
-            },
-            timeout=15
-        )
-        logging.info(f"UploadTextFile: {r2.status_code} - {r2.text}")
+        # שלב 2: העלאת קובץ
+        r2 = requests.post(f"{YEMOT_API_URL}UploadTextFile", params={
+            "token": token, "what": f"ivr2:/{clean_ext}/ext.ini", "contents": ext_ini
+        }, timeout=15)
 
-        # ---------- שלב 3: הודעת סיכום ----------
         if r2.status_code == 200 and '"responseStatus":"OK"' in r2.text:
-            speed_labels = {
-                "-2": "קצת איטי", "2": "קצת מהיר", "-4": "איטי", "4": "מהיר",
-                "-7": "איטי מאוד", "7": "מהיר מאוד", "-10": "איטי במיוחד", "10": "מהיר במיוחד"
-            }
-            speed_label = speed_labels.get(selected_speed, "רגיל")
-            omer_status = "פעיל" if omer_choice == "1" else "כבוי"
-            conf_status = f"פעיל (שלוחה {conf_extension})" if conf_bridge == "1" else "כבוי"
-            hash_status = "שלוחה נפרדת" if hash_setting == "1" else "ברירת מחדל (חזרה)"
-            star_status = "שלוחה נפרדת" if star_setting == "1" else "ברירת מחדל (הפרדה)"
-
-            msg = f"t-השלוחה {clean_ext} הוגדרה בהצלחה על ידי מגדיר פון שלום והתראות. מהירות: {speed_label}. ספירת העומר: {omer_status}. ועידה: {conf_status}. סולמית: {hash_status}. כוכבית: {star_status}"
+            speed_label = {"-2": "קצת איטי", "2": "קצת מהיר", "-4": "איטי", "4": "מהיר",
+                          "-7": "איטי מאוד", "7": "מהיר מאוד", "-10": "איטי במיוחד", "10": "מהיר במיוחד"}.get(selected_speed, "רגיל")
             
-            return ym_say_and_go_back(msg)   # עכשיו יחזור לתפריט הקודם
-
+            msg = f"t-השלוחה {clean_ext} הוגדרה בהצלחה. מהירות: {speed_label}. ספירת העומר: {'פעיל' if omer_choice == '1' else 'כבוי'}."
+            return ym_say_and_go_back(msg)   # ← כאן התיקון
         else:
             return ym_say_and_go_back("t-השלוחה נוצרה אך התפריט לא נטען")
 
