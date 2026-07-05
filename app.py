@@ -34,6 +34,8 @@ def create_menu():
     change_voice = request.values.get('change_voice')
     voice_choice = request.values.get('voice_choice')
     hash_setting = request.values.get('hash_setting')
+    change_speed = request.values.get('change_speed')
+    speed_choice = request.values.get('speed_choice')
 
     if not system:
         return ym_read("system", "t-אנא הקישו את מספר המערכת ובסיום הקישו סולמית", 10)
@@ -50,7 +52,12 @@ def create_menu():
     if not change_voice:
         return ym_read("change_voice", "t-האם ברצונך להגדיר את הקול הרובוטי בשלוחה, להגדרה הקישו 1 וסולמית להמשך ללא שינוי הקישו 0 וסולמית", 1)
     if change_voice == "1" and not voice_choice:
-        return ym_read("voice_choice", "t-בחר קול:  לאליק הקישו 1 וסולמית ליעקב הקישו 2 וסולמית לסיוון הקישו 3 וסולמית לסיוון הקישו 4 וסולמית", 1)
+        return ym_read("voice_choice", "t-בחר קול:  לאליק הקישו 1 וסולמית ליעקב הקישו 2 וסולמית לסיוון הקישו 3 וסולמית לאסנת הקישו 4 וסולמית", 1)
+
+    if not change_speed:
+        return ym_read("change_speed", "t-האם ברצונך לשנות את מהירות הקול הרובוטי? לשינוי הקישו 1 וסולמית להמשך ללא שינוי הקישו 0 וסולמית", 1)
+    if change_speed == "1" and not speed_choice:
+        return ym_read("speed_choice", "t-בחר מהירות: 1-איטי 2-רגיל 3-מהיר 4-מהיר מאוד", 1)
 
     if not hash_setting:
         return ym_read("hash_setting", "t-ברירת המחדל מקש סולמית משמש לחזרה לתפריט הקודם, אם ברצונך ששלוחה סולמית תיהיה שלוחה בפני עצמה הקישו 1 וסולמית להמשך ללא שינוי הקישו 0 וסולמית", 1)
@@ -71,6 +78,15 @@ def create_menu():
         }
         selected_voice = voice_map.get(voice_choice, "he-il-1") if change_voice == "1" else "he-il-1"
 
+        # ---------- מיפוי מהירויות לפי tts_rate ----------
+        speed_map = {
+            "1": "-5",   # איטי
+            "2": "0",    # רגיל (ברירת מחדל)
+            "3": "5",    # מהיר
+            "4": "10"    # מהיר מאוד
+        }
+        selected_speed = speed_map.get(speed_choice, "0") if change_speed == "1" else "0"
+
         hash_line = "hash_extension=yes" if hash_setting == "1" else ""
 
         ext_ini = f"""type=menu
@@ -78,6 +94,7 @@ title=שלוחת תפריט נבנה באמצעות מגדיר פון
 max_digits={digits}
 {hash_line}
 menu_voice={selected_voice}
+tts_rate={selected_speed}
 default=go_to:$EXT
 """
 
@@ -108,7 +125,14 @@ default=go_to:$EXT
         logging.info(f"UploadTextFile: {r2.status_code} - {r2.text}")
 
         if r2.status_code == 200 and '"responseStatus":"OK"' in r2.text:
-            msg = f"t-השלוחה {clean_ext} הוגדרה"
+            speed_labels = {
+                "-5": "איטי",
+                "0": "רגיל",
+                "5": "מהיר",
+                "10": "מהיר מאוד"
+            }
+            speed_label = speed_labels.get(selected_speed, "רגיל")
+            msg = f"t-השלוחה {clean_ext} הוגדרה בהצלחה . מהירות: {speed_label}"
             return ym_say_and_go_back(msg)
         else:
             return ym_say_and_go_back("t-השלוחה נוצרה אך התפריט לא נטען")
