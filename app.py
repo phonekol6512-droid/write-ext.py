@@ -19,9 +19,9 @@ def ym_read(var_name: str, prompt: str, max_digits=1):
     return ym_response(f"read={prompt}={var_name},{max_digits},12,1,Digits")
 
 
-def ym_say_and_transfer(text: str, target: str):
-    """משמיע הודעה ומעביר לתפריט ראשי."""
-    return ym_response(f"id_list_message={text}\ntransfer={target}")
+def ym_say_and_go_back(text: str):
+    """משמיע הודעה וחוזר לתפריט הקודם (ללא לופ)"""
+    return ym_response(f"id_list_message={text}")
 
 
 @app.route('/create-menu', methods=['GET', 'POST'])
@@ -58,7 +58,7 @@ def create_menu():
     try:
         clean_ext = extension.strip().replace('*', '/').replace('-', '/').strip('/')
         if not clean_ext:
-            return ym_say_and_transfer("t-שגיאה: השלוחה ריקה", "100")
+            return ym_say_and_go_back("t-שגיאה: השלוחה ריקה")
 
         token = f"{system.strip()}:{password.strip()}"
         digits = int(num_digits) if (num_digits and num_digits.isdigit()) else 1
@@ -78,7 +78,7 @@ title=שלוחת תפריט נבנה באמצעות מגדיר פון
 max_digits={digits}
 {hash_line}
 menu_voice={selected_voice}
-
+default=go_to:$EXT
 """
 
         r1 = requests.get(
@@ -94,7 +94,7 @@ menu_voice={selected_voice}
         logging.info(f"UpdateExtension: {r1.status_code} - {r1.text}")
 
         if not (r1.status_code == 200 and '"responseStatus":"OK"' in r1.text):
-            return ym_say_and_transfer("t-שגיאה ביצירת השלוחה", "100")
+            return ym_say_and_go_back("t-שגיאה ביצירת השלוחה")
 
         r2 = requests.post(
             f"{YEMOT_API_URL}UploadTextFile",
@@ -108,15 +108,14 @@ menu_voice={selected_voice}
         logging.info(f"UploadTextFile: {r2.status_code} - {r2.text}")
 
         if r2.status_code == 200 and '"responseStatus":"OK"' in r2.text:
-            msg = f"t-השלוחה {clean_ext} נוצרה. ספרות: {digits}. קול: {selected_voice}"
-            # משמיע הודעה ומעביר לתפריט ראשי 100
-            return ym_say_and_transfer(msg, "100")
+            msg = f"t-השלוחה {clean_ext} הוגדרה"
+            return ym_say_and_go_back(msg)
         else:
-            return ym_say_and_transfer("t-השלוחה נוצרה אך התפריט לא נטען", "100")
+            return ym_say_and_go_back("t-השלוחה נוצרה אך התפריט לא נטען")
 
     except Exception as e:
         logging.exception("שגיאה")
-        return ym_say_and_transfer("t-שגיאה טכנית. נסה שוב", "100")
+        return ym_say_and_go_back("t-שגיאה טכנית")
 
 
 if __name__ == '__main__':
