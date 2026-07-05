@@ -191,7 +191,7 @@ rate={selected_speed}
             conf_status = f"פעיל (שלוחה {conf_extension})" if conf_bridge == "1" else "כבוי"
             hash_status = "שלוחה נפרדת" if hash_setting == "1" else "ברירת מחדל (חזרה)"
             star_status = "שלוחה נפרדת" if star_setting == "1" else "ברירת מחדל (הפרדה)"
-            msg = f"t-השלוחה {clean_ext} הוגדרה. מהירות: {speed_label}. ספירת העומר: {omer_status}. ועידה: {conf_status}. סולמית: {hash_status}. כוכבית: {star_status}"
+            msg = f"t-השלוחה {clean_ext} הוגדרה בהצלחה על ידי מגדיר פון שלום והתראות. מהירות: {speed_label}. ספירת העומר: {omer_status}. ועידה: {conf_status}. סולמית: {hash_status}. כוכבית: {star_status}"
             return ym_say_and_go_back(msg)
         else:
             return ym_say_and_go_back("t-השלוחה נוצרה אך התפריט לא נטען")
