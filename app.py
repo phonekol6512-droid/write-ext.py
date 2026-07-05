@@ -1,4 +1,4 @@
-טוב הכל פיקס זה הקוד חשוב בגלל העברית אל תשנה import re
+import re
 import logging
 import requests
 from flask import Flask, request, make_response
