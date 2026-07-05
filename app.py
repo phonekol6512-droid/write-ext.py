@@ -52,12 +52,12 @@ def create_menu():
     if not change_voice:
         return ym_read("change_voice", "t-האם ברצונך להגדיר את הקול הרובוטי בשלוחה, להגדרה הקישו 1 וסולמית להמשך ללא שינוי הקישו 0 וסולמית", 1)
     if change_voice == "1" and not voice_choice:
-        return ym_read("voice_choice", "t-בחר קול:  לאליק הקישו 1 וסולמית ליעקב הקישו 2 וסולמית לסיוון הקישו 3 וסולמית לאסנת הקישו 4 וסולמית", 1)
+        return ym_read("voice_choice", "t-בחר קול: 1-אליק 2-יעקב 3-סיוון 4-אסנת", 1)
 
     if not change_speed:
         return ym_read("change_speed", "t-האם ברצונך לשנות את מהירות הקול הרובוטי? לשינוי הקישו 1 וסולמית להמשך ללא שינוי הקישו 0 וסולמית", 1)
     if change_speed == "1" and not speed_choice:
-        return ym_read("speed_choice", "t-בחר מהירות: 1-איטי 2-רגיל 3-מהיר 4-מהיר מאוד", 1)
+        return ym_read("speed_choice", "t-בחר מהירות: 1 קצת איטי(-2) 2 קצת מהיר(2) 3 איטי(-4)  4 מהיר(4) 5 איטי מאוד(-6) 6 מהיר מאוד(6) 7 איטי ביותר(-8) 8 מהיר ביותר(8)", 1)
 
     if not hash_setting:
         return ym_read("hash_setting", "t-ברירת המחדל מקש סולמית משמש לחזרה לתפריט הקודם, אם ברצונך ששלוחה סולמית תיהיה שלוחה בפני עצמה הקישו 1 וסולמית להמשך ללא שינוי הקישו 0 וסולמית", 1)
@@ -78,12 +78,16 @@ def create_menu():
         }
         selected_voice = voice_map.get(voice_choice, "he-il-1") if change_voice == "1" else "he-il-1"
 
-        # ---------- מיפוי מהירויות לפי tts_rate ----------
+        # ---------- מיפוי מהירויות עם 8 אופציות ----------
         speed_map = {
-            "1": "-5",   # איטי
-            "2": "0",    # רגיל (ברירת מחדל)
-            "3": "5",    # מהיר
-            "4": "10"    # מהיר מאוד
+            "1": "-2",   # קצת איטי
+            "2": "2",    # קצת מהיר
+            "3": "-4",   # איטי
+            "4": "4",    # מהיר
+            "5": "-6",   # איטי מאוד
+            "6": "6",    # מהיר מאוד
+            "7": "-8",   # איטי ביותר
+            "8": "8"     # מהיר ביותר
         }
         selected_speed = speed_map.get(speed_choice, "0") if change_speed == "1" else "0"
 
@@ -126,13 +130,17 @@ default=go_to:$EXT
 
         if r2.status_code == 200 and '"responseStatus":"OK"' in r2.text:
             speed_labels = {
-                "-5": "איטי",
-                "0": "רגיל",
-                "5": "מהיר",
-                "10": "מהיר מאוד"
+                "-2": "קצת איטי",
+                "2": "קצת מהיר",
+                "-4": "איטי",
+                "4": "מהיר",
+                "-6": "איטי מאוד",
+                "6": "מהיר מאוד",
+                "-8": "איטי ביותר",
+                "8": "מהיר ביותר"
             }
             speed_label = speed_labels.get(selected_speed, "רגיל")
-            msg = f"t-השלוחה {clean_ext} הוגדרה בהצלחה . מהירות: {speed_label}"
+            msg = f"t-השלוחה {clean_ext} הוגדרה. מהירות: {speed_label}"
             return ym_say_and_go_back(msg)
         else:
             return ym_say_and_go_back("t-השלוחה נוצרה אך התפריט לא נטען")
