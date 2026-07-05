@@ -94,7 +94,7 @@ title=שלוחת תפריט נבנה באמצעות מגדיר פון
 max_digits={digits}
 {hash_line}
 menu_voice={selected_voice}
-tts_rate={selected_speed}
+rate={selected_speed}
 default=go_to:$EXT
 """
 
