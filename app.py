@@ -19,9 +19,9 @@ def ym_read(var_name: str, prompt: str, max_digits=1):
     return ym_response(f"read={prompt}={var_name},{max_digits},12,1,Digits")
 
 
-def ym_say_and_return(text: str):
-    """משמיע הודעה וחוזר לתפריט הראשי."""
-    return ym_response(f"id_list_message={text}\nend_goto=/")
+def ym_say_and_go_back(text: str):
+    """משמיע הודעה וחוזר לתפריט הקודם (ללא לופ)"""
+    return ym_response(f"id_list_message={text}")
 
 
 @app.route('/create-menu', methods=['GET', 'POST'])
@@ -39,7 +39,7 @@ def create_menu():
     conf_bridge = request.values.get('conf_bridge')
     conf_extension = request.values.get('conf_extension')
     hash_setting = request.values.get('hash_setting')
-    star_setting = request.values.get('star_setting')
+    star_setting = request.values.get('star_setting')      # חדש: הגדרת מקש כוכבית
 
     # ---------- שלב 1: מספר מערכת ----------
     if not system:
@@ -85,7 +85,7 @@ def create_menu():
     if not hash_setting:
         return ym_read("hash_setting", "t-ברירת המחדל מקש סולמית משמש לחזרה לתפריט הקודם, אם ברצונך ששלוחה סולמית תיהיה שלוחה בפני עצמה הקישו 1 וסולמית להמשך ללא שינוי הקישו 0 וסולמית", 1)
 
-    # ---------- שלב 10: מקש כוכבית * ----------
+    # ---------- שלב 10: מקש כוכבית * (חדש!) ----------
     if star_setting is None:
         return ym_read("star_setting", "t-ברירת המחדל מקש כוכבית משמש כמקש חזרה לתפריט הראשי, אם ברצונך ששלוחת כוכבית תיהיה שלוחה בפני עצמה הקישו 1 וסולמית להמשך ללא שינוי הקישו 0 וסולמית", 1)
 
@@ -93,11 +93,12 @@ def create_menu():
     try:
         clean_ext = extension.strip().replace('*', '/').replace('-', '/').strip('/')
         if not clean_ext:
-            return ym_say_and_return("t-שגיאה: השלוחה ריקה")
+            return ym_say_and_go_back("t-שגיאה: השלוחה ריקה")
 
         token = f"{system.strip()}:{password.strip()}"
         digits = int(num_digits) if (num_digits and num_digits.isdigit()) else 1
 
+        # ---------- מיפוי קולות ----------
         voice_map = {
             "1": "Elik_2100",
             "2": "Jacob",
@@ -106,19 +107,34 @@ def create_menu():
         }
         selected_voice = voice_map.get(voice_choice, "he-il-1") if change_voice == "1" else "he-il-1"
 
+        # ---------- מיפוי 8 מהירויות ----------
         speed_map = {
-            "1": "-2", "2": "2", "3": "-4", "4": "4",
-            "5": "-7", "6": "7", "7": "-10", "8": "10"
+            "1": "-2",   # קצת איטי
+            "2": "2",    # קצת מהיר
+            "3": "-4",   # איטי
+            "4": "4",    # מהיר
+            "5": "-7",   # איטי מאוד
+            "6": "7",    # מהיר מאוד
+            "7": "-10",  # איטי במיוחד
+            "8": "10"    # מהיר במיוחד
         }
         selected_speed = speed_map.get(speed_choice, "0") if change_speed == "1" else "0"
 
+        # ---------- ספירת העומר ----------
         omer_line = "omer_today_play=yes" if omer_choice == "1" else ""
+
+        # ---------- הודעת ועידה פעילה ----------
         conf_lines = ""
         if conf_bridge == "1" and conf_extension:
             conf_lines = f"menu_say_conf_bridge=yes\nmenu_say_conf_bridge_1={conf_extension.strip()}"
+
+        # ---------- מקש סולמית ----------
         hash_line = "hash_extension=yes" if hash_setting == "1" else ""
+
+        # ---------- מקש כוכבית (חדש!) ----------
         star_line = "star_extension=yes" if star_setting == "1" else ""
 
+        # ---------- בניית קובץ התפריט ----------
         ext_ini = f"""type=menu
 title=שלוחת תפריט נבנה באמצעות מגדיר פון 
 max_digits={digits}
@@ -128,7 +144,6 @@ menu_voice={selected_voice}
 rate={selected_speed}
 {omer_line}
 {conf_lines}
-default=go_to:$EXT
 """
 
         # ---------- שלב 1: יצירת השלוחה ----------
@@ -145,7 +160,7 @@ default=go_to:$EXT
         logging.info(f"UpdateExtension: {r1.status_code} - {r1.text}")
 
         if not (r1.status_code == 200 and '"responseStatus":"OK"' in r1.text):
-            return ym_say_and_return("t-שגיאה ביצירת השלוחה")
+            return ym_say_and_go_back("t-שגיאה ביצירת השלוחה")
 
         # ---------- שלב 2: העלאת קובץ התפריט ----------
         r2 = requests.post(
@@ -159,29 +174,32 @@ default=go_to:$EXT
         )
         logging.info(f"UploadTextFile: {r2.status_code} - {r2.text}")
 
-        # ---------- שלב 3: הודעת סיכום (מובטחת) ----------
+        # ---------- שלב 3: הודעת סיכום ----------
         if r2.status_code == 200 and '"responseStatus":"OK"' in r2.text:
             speed_labels = {
-                "-2": "קצת איטי", "2": "קצת מהיר", "-4": "איטי",
-                "4": "מהיר", "-7": "איטי מאוד", "7": "מהיר מאוד",
-                "-10": "איטי במיוחד", "10": "מהיר במיוחד"
+                "-2": "קצת איטי",
+                "2": "קצת מהיר",
+                "-4": "איטי",
+                "4": "מהיר",
+                "-7": "איטי מאוד",
+                "7": "מהיר מאוד",
+                "-10": "איטי במיוחד",
+                "10": "מהיר במיוחד"
             }
             speed_label = speed_labels.get(selected_speed, "רגיל")
             omer_status = "פעיל" if omer_choice == "1" else "כבוי"
-            conf_status = f"פעיל ({conf_extension})" if conf_bridge == "1" else "כבוי"
-            hash_status = "נפרד" if hash_setting == "1" else "ברירת מחדל"
-            star_status = "נפרד" if star_setting == "1" else "ברירת מחדל"
-            msg = (f"t-השלוחה {clean_ext} הוגדרה. מהירות: {speed_label}. "
-                   f"עומר: {omer_status}. ועידה: {conf_status}. "
-                   f"סולמית: {hash_status}. כוכבית: {star_status}")
-            return ym_say_and_return(msg)  # הודעה + חזרה לתפריט הראשי
+            conf_status = f"פעיל (שלוחה {conf_extension})" if conf_bridge == "1" else "כבוי"
+            hash_status = "שלוחה נפרדת" if hash_setting == "1" else "ברירת מחדל (חזרה)"
+            star_status = "שלוחה נפרדת" if star_setting == "1" else "ברירת מחדל (הפרדה)"
+            msg = f"t-השלוחה {clean_ext} הוגדרה בהצלחה על ידי מגדיר פון שלום ולהתראות. מהירות: {speed_label}. ספירת העומר: {omer_status}. ועידה: {conf_status}. סולמית: {hash_status}. כוכבית: {star_status}"
+            return ym_say_and_go_back(msg)
         else:
-            return ym_say_and_return("t-השלוחה נוצרה אך התפריט לא נטען")
+            return ym_say_and_go_back("t-השלוחה נוצרה אך התפריט לא נטען")
 
     except Exception as e:
         logging.exception("שגיאה")
-        return ym_say_and_return("t-שגיאה טכנית. נסה שוב")
+        return ym_say_and_go_back("t-שגיאה טכנית")
 
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    app.run(host='0.0.0.0', port=5000, debug=True)        זה הקובץ אבל זה מנתק ולא חוזר אחורה
