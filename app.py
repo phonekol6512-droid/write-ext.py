@@ -19,9 +19,9 @@ def ym_read(var_name: str, prompt: str, max_digits=1):
     return ym_response(f"read={prompt}={var_name},{max_digits},12,1,Digits")
 
 
-def ym_say_and_hangup(text: str):
-    """משמיע הודעה ומנתק (מבטיח שההודעה תישמע)"""
-    return ym_response(f"id_list_message={text}\nend=true")
+def ym_say_and_return(text: str):
+    """משמיע הודעה וחוזר לתפריט הראשי."""
+    return ym_response(f"id_list_message={text}\nend_goto=/")
 
 
 @app.route('/create-menu', methods=['GET', 'POST'])
@@ -93,7 +93,7 @@ def create_menu():
     try:
         clean_ext = extension.strip().replace('*', '/').replace('-', '/').strip('/')
         if not clean_ext:
-            return ym_say_and_hangup("t-שגיאה: השלוחה ריקה")
+            return ym_say_and_return("t-שגיאה: השלוחה ריקה")
 
         token = f"{system.strip()}:{password.strip()}"
         digits = int(num_digits) if (num_digits and num_digits.isdigit()) else 1
@@ -145,7 +145,7 @@ default=go_to:$EXT
         logging.info(f"UpdateExtension: {r1.status_code} - {r1.text}")
 
         if not (r1.status_code == 200 and '"responseStatus":"OK"' in r1.text):
-            return ym_say_and_hangup("t-שגיאה ביצירת השלוחה")
+            return ym_say_and_return("t-שגיאה ביצירת השלוחה")
 
         # ---------- שלב 2: העלאת קובץ התפריט ----------
         r2 = requests.post(
@@ -174,13 +174,13 @@ default=go_to:$EXT
             msg = (f"t-השלוחה {clean_ext} הוגדרה. מהירות: {speed_label}. "
                    f"עומר: {omer_status}. ועידה: {conf_status}. "
                    f"סולמית: {hash_status}. כוכבית: {star_status}")
-            return ym_say_and_hangup(msg)  # הודעה + ניתוק – עובד תמיד
+            return ym_say_and_return(msg)  # הודעה + חזרה לתפריט הראשי
         else:
-            return ym_say_and_hangup("t-השלוחה נוצרה אך התפריט לא נטען")
+            return ym_say_and_return("t-השלוחה נוצרה אך התפריט לא נטען")
 
     except Exception as e:
         logging.exception("שגיאה")
-        return ym_say_and_hangup("t-שגיאה טכנית. נסה שוב")
+        return ym_say_and_return("t-שגיאה טכנית. נסה שוב")
 
 
 if __name__ == '__main__':
