@@ -19,9 +19,9 @@ def ym_read(var_name: str, prompt: str, max_digits=1):
     return ym_response(f"read={prompt}={var_name},{max_digits},12,1,Digits")
 
 
-def ym_say_and_go_back(text: str):
-    """משמיע הודעה באמצעות TTS וחוזר אוטומטית (ללא ניתוק)"""
-    return ym_response(f"say=he-IL,{text}")
+def ym_say_and_hangup(text: str):
+    """משמיע הודעה ומנתק (מבטיח שההודעה תישמע)"""
+    return ym_response(f"id_list_message={text}\nend=true")
 
 
 @app.route('/create-menu', methods=['GET', 'POST'])
@@ -69,7 +69,7 @@ def create_menu():
     if not change_speed:
         return ym_read("change_speed", "t-האם ברצונך לשנות את מהירות הקול הרובוטי? לשינוי הקישו 1 וסולמית להמשך ללא שינוי הקישו 0 וסולמית", 1)
     if change_speed == "1" and not speed_choice:
-        return ym_read("speed_choice", "t-בחר מהירות: לקול קצת איטי הקש 1, לקול קצת מהיר הקש 2, לקול איטי הקש 3, לקול מהיר הקש 4, לקול איטי מאוד הקש 5, לקול מהיר מאוד הקש 6, לקול איטי במיוחד הקש 7, לקול מהיר במיוחד הקש 8", 1)
+        return ym_read("speed_choice", "t-בחר מהירות: לקול קצת איטי הקש 1, לקול צת מהיר הקש 2, לקול איטי הקש 3, לקול מהיר הקש 4, לקול איטי מאוד הקש 5, לקול מהיר מאוד הקש 6, לקול איטי במיוחד הקש 7, לקול מהיר במיוחד הקש 8", 1)
 
     # ---------- שלב 7: ספירת העומר ----------
     if omer_choice is None:
@@ -93,12 +93,11 @@ def create_menu():
     try:
         clean_ext = extension.strip().replace('*', '/').replace('-', '/').strip('/')
         if not clean_ext:
-            return ym_say_and_go_back("שגיאה: השלוחה ריקה")
+            return ym_say_and_hangup("t-שגיאה: השלוחה ריקה")
 
         token = f"{system.strip()}:{password.strip()}"
         digits = int(num_digits) if (num_digits and num_digits.isdigit()) else 1
 
-        # ---------- מיפוי קולות ----------
         voice_map = {
             "1": "Elik_2100",
             "2": "Jacob",
@@ -107,34 +106,19 @@ def create_menu():
         }
         selected_voice = voice_map.get(voice_choice, "he-il-1") if change_voice == "1" else "he-il-1"
 
-        # ---------- מיפוי 8 מהירויות ----------
         speed_map = {
-            "1": "-2",   # קצת איטי
-            "2": "2",    # קצת מהיר
-            "3": "-4",   # איטי
-            "4": "4",    # מהיר
-            "5": "-7",   # איטי מאוד
-            "6": "7",    # מהיר מאוד
-            "7": "-10",  # איטי במיוחד
-            "8": "10"    # מהיר במיוחד
+            "1": "-2", "2": "2", "3": "-4", "4": "4",
+            "5": "-7", "6": "7", "7": "-10", "8": "10"
         }
         selected_speed = speed_map.get(speed_choice, "0") if change_speed == "1" else "0"
 
-        # ---------- ספירת העומר ----------
         omer_line = "omer_today_play=yes" if omer_choice == "1" else ""
-
-        # ---------- הודעת ועידה פעילה ----------
         conf_lines = ""
         if conf_bridge == "1" and conf_extension:
             conf_lines = f"menu_say_conf_bridge=yes\nmenu_say_conf_bridge_1={conf_extension.strip()}"
-
-        # ---------- מקש סולמית ----------
         hash_line = "hash_extension=yes" if hash_setting == "1" else ""
-
-        # ---------- מקש כוכבית ----------
         star_line = "star_extension=yes" if star_setting == "1" else ""
 
-        # ---------- בניית קובץ התפריט ----------
         ext_ini = f"""type=menu
 title=שלוחת תפריט נבנה באמצעות מגדיר פון 
 max_digits={digits}
@@ -161,7 +145,7 @@ default=go_to:$EXT
         logging.info(f"UpdateExtension: {r1.status_code} - {r1.text}")
 
         if not (r1.status_code == 200 and '"responseStatus":"OK"' in r1.text):
-            return ym_say_and_go_back("שגיאה ביצירת השלוחה")
+            return ym_say_and_hangup("t-שגיאה ביצירת השלוחה")
 
         # ---------- שלב 2: העלאת קובץ התפריט ----------
         r2 = requests.post(
@@ -175,32 +159,28 @@ default=go_to:$EXT
         )
         logging.info(f"UploadTextFile: {r2.status_code} - {r2.text}")
 
-        # ---------- שלב 3: הודעת סיכום (קצרה!) ----------
+        # ---------- שלב 3: הודעת סיכום (מובטחת) ----------
         if r2.status_code == 200 and '"responseStatus":"OK"' in r2.text:
             speed_labels = {
-                "-2": "קצת איטי",
-                "2": "קצת מהיר",
-                "-4": "איטי",
-                "4": "מהיר",
-                "-7": "איטי מאוד",
-                "7": "מהיר מאוד",
-                "-10": "איטי במיוחד",
-                "10": "מהיר במיוחד"
+                "-2": "קצת איטי", "2": "קצת מהיר", "-4": "איטי",
+                "4": "מהיר", "-7": "איטי מאוד", "7": "מהיר מאוד",
+                "-10": "איטי במיוחד", "10": "מהיר במיוחד"
             }
             speed_label = speed_labels.get(selected_speed, "רגיל")
             omer_status = "פעיל" if omer_choice == "1" else "כבוי"
             conf_status = f"פעיל ({conf_extension})" if conf_bridge == "1" else "כבוי"
             hash_status = "נפרד" if hash_setting == "1" else "ברירת מחדל"
             star_status = "נפרד" if star_setting == "1" else "ברירת מחדל"
-            # הודעה קצרה – מובטחת
-            msg = f"השלוחה {clean_ext} הוגדרה. מהירות: {speed_label}. עומר: {omer_status}. ועידה: {conf_status}. סולמית: {hash_status}. כוכבית: {star_status}"
-            return ym_say_and_go_back(msg)   # TTS, לא מנתק
+            msg = (f"t-השלוחה {clean_ext} הוגדרה. מהירות: {speed_label}. "
+                   f"עומר: {omer_status}. ועידה: {conf_status}. "
+                   f"סולמית: {hash_status}. כוכבית: {star_status}")
+            return ym_say_and_hangup(msg)  # הודעה + ניתוק – עובד תמיד
         else:
-            return ym_say_and_go_back("השלוחה נוצרה אך התפריט לא נטען")
+            return ym_say_and_hangup("t-השלוחה נוצרה אך התפריט לא נטען")
 
     except Exception as e:
         logging.exception("שגיאה")
-        return ym_say_and_go_back("שגיאה טכנית")
+        return ym_say_and_hangup("t-שגיאה טכנית. נסה שוב")
 
 
 if __name__ == '__main__':
