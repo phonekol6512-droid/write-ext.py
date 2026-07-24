@@ -7,7 +7,7 @@ from flask import Flask, request, make_response
 app = Flask(__name__)
 YEMOT_API_URL = "https://www.call2all.co.il/ym/api/"
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')יייי
 
 # ==========================================================
 #  אבטחה: רשימת IP-ים מורשים (למשל שרתי Yemot בלבד).
